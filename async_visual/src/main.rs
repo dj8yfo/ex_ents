@@ -4,7 +4,13 @@ use colored::{Color, Colorize};
 use std::future::Future;
 
 type LocalRes = std::io::Result<(String, Color)>;
-
+fn helper_print(input: &dyn std::fmt::Display) {
+    eprintln!(
+        "{:?}:{}",
+        std::thread::current().id(),
+        input
+    )
+}
 fn cheapo_request<'b, 'a: 'b>(
     host: &'a str,
     port: u16,
@@ -14,26 +20,25 @@ fn cheapo_request<'b, 'a: 'b>(
     let host = host.to_string();
     let path = path.to_string();
     async move {
-        eprintln!("{}", "Awaiting connection retrival...".color(color));
+        helper_print(&"Awaiting connection retrival...".color(color));
 
         let mut socket = net::TcpStream::connect((host.as_ref(), port)).await?;
-        eprintln!("obtained {}", format!("{:?}", socket).color(color));
+        helper_print(&format!("obtained {}", format!("{:?}", socket).color(color)));
 
         let request = format!("GET {} HTTP/1.1\r\nHost: {}\r\n\r\n", path, host);
-        eprintln!("{}", "sending request...".color(color));
+        helper_print(&"sending request...".color(color));
         socket.write_all(request.as_bytes()).await?;
         socket.shutdown(net::Shutdown::Write)?;
-        eprintln!("{}", "request sent".color(color));
+        helper_print(&"request sent".color(color));
 
         let mut response = String::new();
-        eprintln!("{}", "reading response...".color(color));
+        helper_print(&"reading response...".color(color));
         socket.read_to_string(&mut response).await?;
-        eprintln!("{}", "retrived response".color(color));
+        helper_print(&"retrived response".color(color));
 
         Ok((response, color))
     }
 }
-
 fn cheapo_request1<'b, 'a: 'b>(
     host: &'a str,
     port: u16,
@@ -89,7 +94,7 @@ async fn many_requests(
 
     let mut handles = vec![];
     for (host, port, path, color) in requests {
-        handles.push(task::spawn_local(cheapo_request(&host, port, &path, color)));
+        handles.push(task::spawn(cheapo_request(&host, port, &path, color)));
     }
 
     let mut results = vec![];
@@ -120,6 +125,12 @@ fn main() {
             "/".to_string(),
             Color::Cyan,
         ),
+        (
+            "en.wikipedia.org".to_string(),
+            80,
+            "/wiki".to_string(),
+            Color::Red,
+        ),
     ];
 
     let results = async_std::task::block_on(many_requests(requests));
@@ -131,4 +142,6 @@ fn main() {
             Err(err) => eprintln!("error: {}", err),
         }
     }
+
+    println!("current thread name {:?} ", std::thread::current().id())
 }
