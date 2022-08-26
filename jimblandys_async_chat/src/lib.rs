@@ -27,11 +27,13 @@ pub enum FromServer {
 #[test]
 fn test_fromclient_json() {
     use std::sync::Arc;
+    use chrono::Utc;
 
     let from_client = FromClient::Post {
         group_name: Arc::new("Dogs".to_string()),
         message: Arc::new("Samoyeds rock!".to_string()),
     };
+    println!("{}", Utc::now());
 
     let json = serde_json::to_string(&from_client).unwrap();
     assert_eq!(json,

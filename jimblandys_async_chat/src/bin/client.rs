@@ -16,7 +16,10 @@ async fn send_commands(mut to_server: net::TcpStream) -> ChatResult<()> {
         // See the GitHub repo for the definition of `parse_command`.
         let request = match parse_command(&command) {
             Some(request) => request,
-            None => continue,
+            None => {
+                println!("empty input");
+                continue
+            },
         };
 
         utils::send_as_json(&mut to_server, &request).await?;
