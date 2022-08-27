@@ -2,6 +2,7 @@ use async_std::prelude::*;
 use async_chat::utils::{self, ChatResult};
 use async_std::io;
 use async_std::net;
+use futures_lite::future::FutureExt;
 
 async fn send_commands(mut to_server: net::TcpStream) -> ChatResult<()> {
     println!("Commands:\n\
@@ -62,7 +63,8 @@ fn main() -> ChatResult<()> {
         let to_server = send_commands(socket.clone());
         let from_server = handle_replies(socket);
 
-        from_server.race(to_server).await?;
+        // from_server.race(to_server).await?;
+        from_server.or(to_server).await?;
 
         Ok(())
     })
