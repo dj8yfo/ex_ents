@@ -9,9 +9,13 @@ use async_std::sync::Arc;
 
 use crate::group_table::GroupTable;
 
+use rand::{thread_rng, RngCore};
+
 pub async fn serve(socket: TcpStream, groups: Arc<GroupTable>)
                    -> ChatResult<()>
 {
+    let id = thread_rng().next_u64();
+    println!("initialized connection from client {}", id);
     let outbound = Arc::new(Outbound::new(socket.clone()));
 
     let buffered = BufReader::new(socket);
@@ -44,6 +48,7 @@ pub async fn serve(socket: TcpStream, groups: Arc<GroupTable>)
             outbound.send(report).await?;
         }
     }
+    println!("dropping connection from client {}", id);
 
     Ok(())
 }
