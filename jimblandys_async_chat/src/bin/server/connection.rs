@@ -1,14 +1,14 @@
-/// Handle a single client's connection.
+use std::net;
 
-use async_chat::{FromClient, FromServer};
 use async_chat::utils::{self, ChatResult};
-use async_std::prelude::*;
+/// Handle a single client's connection.
+use async_chat::{FromClient, FromServer};
 use async_std::io::BufReader;
 use async_std::net::TcpStream;
+use async_std::prelude::*;
 use async_std::sync::Arc;
 
 use crate::group_table::GroupTable;
-
 
 pub async fn work_connection(
     socket: TcpStream,
@@ -25,9 +25,10 @@ pub async fn work_connection(
 
     let result = serve(from_client, outbound.clone(), groups).await;
 
+    let shut_res = outbound.stream.lock().await.shutdown(net::Shutdown::Write);
     println!(
-        "server/work_connection routine: dropping connection from  {}",
-        outbound.id
+        "server/work_connection routine: dropping connection from  {}, shut_res {:?}",
+        outbound.id, shut_res,
     );
     return result;
 }
@@ -68,15 +69,15 @@ async fn serve(
 }
 use async_std::sync::Mutex;
 
-pub struct Outbound{
-    id: std::net::SocketAddr,
+pub struct Outbound {
+    pub (crate) id: std::net::SocketAddr,
     stream: Mutex<TcpStream>,
 }
 
 impl Outbound {
     pub fn new(to_client: TcpStream) -> Outbound {
         let id = to_client.peer_addr().unwrap();
-        Outbound{
+        Outbound {
             stream: Mutex::new(to_client),
             id: id,
         }
