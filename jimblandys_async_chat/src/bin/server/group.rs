@@ -1,7 +1,8 @@
 //! A chat group.
 
-use async_std::{task, sync::Mutex};
-use crate::connection::Outbound;
+use async_std::task;
+use std::sync::Mutex;
+use crate::{connection::Outbound, group_table::GroupTable};
 use std::{sync::Arc, collections::HashSet, net::SocketAddr};
 use tokio::sync::broadcast;
 
@@ -21,14 +22,16 @@ impl Group {
         }
     }
 
-    pub fn join(&self, outbound: Arc<Outbound>) {
+    pub fn join_and_leave_cycle(&self, outbound: Arc<Outbound>, groups: Arc<GroupTable>) {
         let receiver = self.sender.subscribe();
+        
 
         task::spawn(handle_subscriber(
             self.name.clone(),
             self.participants.clone(),
             receiver,
             outbound,
+            groups,
         ));
     }
 
@@ -48,10 +51,11 @@ async fn handle_subscriber(
     participants: Arc<Mutex<HashSet<SocketAddr>>>,
     receiver: broadcast::Receiver<Arc<String>>,
     outbound: Arc<Outbound>,
+    groups: Arc<GroupTable>,
 ) {
     let participant_id = outbound.id;
     {
-        let mut guard = participants.lock().await;
+        let mut guard = participants.lock().unwrap();
         if !guard.insert(outbound.id) {
             println!(
                 "double join attempt {} <- {}",
@@ -59,17 +63,20 @@ async fn handle_subscriber(
             );
             return;
         } else {
-            println!("joined {} <- {}", group_name, outbound.id);
+            println!("joined {} <- {}, ({})", group_name, outbound.id, guard.len());
         }
     }
     loop_subscriber(group_name.clone(), receiver, outbound).await;
     {
-        let mut guard = participants.lock().await;
+        let mut guard = participants.lock().unwrap();
         let removed = guard.remove(&participant_id);
         println!(
-            "removed from {} ->out  \"{}\", if removed {}",
-            group_name, participant_id, removed
+            "removed from {} ->out  \"{}\", if removed {}, ({})",
+            group_name, participant_id, removed, guard.len(),
         );
+        if guard.len() == 0 {
+            groups.remove(&group_name);
+        }
     }
 }
 async fn loop_subscriber(

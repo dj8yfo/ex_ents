@@ -16,6 +16,12 @@ impl GroupTable {
             .cloned()
     }
 
+    pub fn remove(&self, name: &String) -> Option<Arc<Group>> {
+        self.0.lock()
+            .unwrap()
+            .remove(name)
+    }
+
     pub fn get_or_create(&self, name: Arc<String>) -> Arc<Group> {
         self.0.lock()
             .unwrap()
