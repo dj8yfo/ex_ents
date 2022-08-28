@@ -9,17 +9,34 @@ use async_std::sync::Arc;
 
 use crate::group_table::GroupTable;
 
-use rand::{thread_rng, RngCore};
 
-pub async fn serve(socket: TcpStream, groups: Arc<GroupTable>)
-                   -> ChatResult<()>
-{
-    let id = thread_rng().next_u64();
-    println!("initialized connection from client {}", id);
+pub async fn work_connection(
+    socket: TcpStream,
+    groups: Arc<GroupTable>,
+) -> ChatResult<()> {
     let outbound = Arc::new(Outbound::new(socket.clone()));
+    println!(
+        "server/work_connection routine: initialized connection from client {}",
+        outbound.id
+    );
 
     let buffered = BufReader::new(socket);
-    let mut from_client = utils::receive_as_json(buffered);
+    let from_client = utils::receive_as_json(buffered);
+
+    let result = serve(from_client, outbound.clone(), groups).await;
+
+    println!(
+        "server/work_connection routine: dropping connection from  {}",
+        outbound.id
+    );
+    return result;
+}
+
+async fn serve(
+    mut from_client: impl Stream<Item = ChatResult<FromClient>> + Unpin,
+    outbound: Arc<Outbound>,
+    groups: Arc<GroupTable>,
+) -> ChatResult<()> {
     while let Some(request_result) = from_client.next().await {
         let request = request_result?;
 
@@ -30,17 +47,16 @@ pub async fn serve(socket: TcpStream, groups: Arc<GroupTable>)
                 Ok(())
             }
 
-            FromClient::Post { group_name, message } => {
-                match groups.get(&group_name) {
-                    Some(group) => {
-                        group.post(message);
-                        Ok(())
-                    }
-                    None => {
-                        Err(format!("Group '{}' does not exist", group_name))
-                    }
+            FromClient::Post {
+                group_name,
+                message,
+            } => match groups.get(&group_name) {
+                Some(group) => {
+                    group.post(message);
+                    Ok(())
                 }
-            }
+                None => Err(format!("Group '{}' does not exist", group_name)),
+            },
         };
 
         if let Err(message) = result {
@@ -48,22 +64,26 @@ pub async fn serve(socket: TcpStream, groups: Arc<GroupTable>)
             outbound.send(report).await?;
         }
     }
-    println!("dropping connection from client {}", id);
-
     Ok(())
 }
-
 use async_std::sync::Mutex;
 
-pub struct Outbound(Mutex<TcpStream>);
+pub struct Outbound{
+    id: std::net::SocketAddr,
+    stream: Mutex<TcpStream>,
+}
 
 impl Outbound {
     pub fn new(to_client: TcpStream) -> Outbound {
-        Outbound(Mutex::new(to_client))
+        let id = to_client.peer_addr().unwrap();
+        Outbound{
+            stream: Mutex::new(to_client),
+            id: id,
+        }
     }
 
     pub async fn send(&self, packet: FromServer) -> ChatResult<()> {
-        let mut guard = self.0.lock().await;
+        let mut guard = self.stream.lock().await;
         utils::send_as_json(&mut *guard, &packet).await?;
         guard.flush().await?;
         Ok(())

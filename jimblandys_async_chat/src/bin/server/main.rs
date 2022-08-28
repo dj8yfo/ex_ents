@@ -10,7 +10,7 @@ mod connection;
 mod group;
 mod group_table;
 
-use connection::serve;
+use connection::work_connection;
 
 fn main() -> ChatResult<()> {
     let address = std::env::args().nth(1).expect("Usage: server ADDRESS");
@@ -28,7 +28,7 @@ fn main() -> ChatResult<()> {
             let socket = socket_result?;
             let groups = chat_group_table.clone();
             task::spawn(async {
-                log_error(serve(socket, groups).await);
+                log_error(work_connection(socket, groups).await);
             });
         }
 
