@@ -44,7 +44,7 @@ async fn serve(
         let result = match request {
             FromClient::Join { group_name } => {
                 let group = groups.get_or_create(group_name);
-                group.join_and_leave_cycle(outbound.clone(), groups.clone());
+                group.join_and_leave_cycle(outbound.clone());
                 Ok(())
             }
 

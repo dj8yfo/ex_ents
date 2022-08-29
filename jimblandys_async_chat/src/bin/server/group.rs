@@ -1,20 +1,18 @@
 //! A chat group.
 
 use async_std::task;
-use std::sync::Mutex;
-use crate::{connection::Outbound, group_table::GroupTable};
-use std::{sync::Arc, collections::HashSet, net::SocketAddr};
+use crate::{connection::Outbound, participants::GroupMembers};
+use std::sync::Arc;
 use tokio::sync::broadcast;
 
 pub struct Group {
     name: Arc<String>,
-    participants: Arc<Mutex<HashSet<SocketAddr>>>,
+    participants: Arc<GroupMembers>,
     sender: broadcast::Sender<Arc<String>>
 }
 impl Group {
-    pub fn new(name: Arc<String>) -> Group {
+    pub fn new(name: Arc<String>, participants: Arc<GroupMembers>) -> Group {
         let (sender, _receiver) = broadcast::channel(1000);
-        let participants = Arc::new(Mutex::new(HashSet::new()));
         Group {
             name,
             participants,
@@ -22,7 +20,7 @@ impl Group {
         }
     }
 
-    pub fn join_and_leave_cycle(&self, outbound: Arc<Outbound>, groups: Arc<GroupTable>) {
+    pub fn join_and_leave_cycle(&self, outbound: Arc<Outbound>) {
         let receiver = self.sender.subscribe();
         
 
@@ -31,7 +29,6 @@ impl Group {
             self.participants.clone(),
             receiver,
             outbound,
-            groups,
         ));
     }
 
@@ -45,40 +42,23 @@ impl Group {
 }
 use async_chat::FromServer;
 use tokio::sync::broadcast::error::RecvError;
-
 async fn handle_subscriber(
     group_name: Arc<String>,
-    participants: Arc<Mutex<HashSet<SocketAddr>>>,
+    participants: Arc<GroupMembers>,
     receiver: broadcast::Receiver<Arc<String>>,
     outbound: Arc<Outbound>,
-    groups: Arc<GroupTable>,
 ) {
-    let participant_id = outbound.id;
-    {
-        let mut guard = participants.lock().unwrap();
-        if !guard.insert(outbound.id) {
-            println!(
-                "double join attempt {} <- {}",
-                group_name, participant_id
-            );
+    let member_id = outbound.id;
+    if let Err(some) = participants.join(group_name.as_str(), member_id) {
+        {
+            println!("err on join: {}", some);
             return;
-        } else {
-            println!("joined {} <- {}, ({})", group_name, outbound.id, guard.len());
         }
     }
     loop_subscriber(group_name.clone(), receiver, outbound).await;
-    {
-        let mut guard = participants.lock().unwrap();
-        let removed = guard.remove(&participant_id);
-        println!(
-            "removed from {} ->out  \"{}\", if removed {}, ({})",
-            group_name, participant_id, removed, guard.len(),
-        );
-        if guard.len() == 0 {
-            groups.remove(&group_name);
-        }
-    }
+    participants.leave(&*group_name, member_id);
 }
+
 async fn loop_subscriber(
     group_name: Arc<String>,
     mut receiver: broadcast::Receiver<Arc<String>>,

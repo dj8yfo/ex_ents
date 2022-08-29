@@ -9,6 +9,7 @@ use std::sync::Arc;
 mod connection;
 mod group;
 mod group_table;
+mod participants;
 
 use connection::work_connection;
 

@@ -1,4 +1,5 @@
 use crate::group::Group;
+use crate::participants::GroupMembers;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -22,11 +23,12 @@ impl GroupTable {
             .remove(name)
     }
 
-    pub fn get_or_create(&self, name: Arc<String>) -> Arc<Group> {
+    pub fn get_or_create(self: &Arc<Self>, name: Arc<String>) -> Arc<Group> {
+        let participants = Arc::new(GroupMembers::new(self.clone()));
         self.0.lock()
             .unwrap()
             .entry(name.clone())
-            .or_insert_with(|| Arc::new(Group::new(name)))
+            .or_insert_with(|| Arc::new(Group::new(name, participants)))
             .clone()
     }
 }
