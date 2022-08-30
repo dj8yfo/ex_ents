@@ -40,8 +40,10 @@ impl Group {
         let _ignored = self.sender.send(message);
     }
 }
+
 use async_chat::FromServer;
 use tokio::sync::broadcast::error::RecvError;
+
 async fn handle_subscriber(
     group_name: Arc<String>,
     participants: Arc<GroupMembers>,
@@ -52,7 +54,7 @@ async fn handle_subscriber(
     if let Err(some) = participants.join(group_name.as_str(), member_id) {
         {
             println!("err on join: {}", some);
-            return;
+            return
         }
     }
     loop_subscriber(group_name.clone(), receiver, outbound).await;

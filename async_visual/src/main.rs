@@ -5,11 +5,7 @@ use std::future::Future;
 
 type LocalRes = std::io::Result<(String, Color)>;
 fn helper_print(input: &dyn std::fmt::Display) {
-    eprintln!(
-        "{:?}:{}",
-        std::thread::current().id(),
-        input
-    )
+    log::debug!("{}", input);
 }
 fn cheapo_request<'b, 'a: 'b>(
     host: &'a str,
@@ -105,7 +101,26 @@ async fn many_requests(
     results
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>>{
+    use std::io::Write;
+
+    env_logger::builder()
+        .format(|buf, record| {
+            let ts = buf.timestamp_micros();
+            writeln!(
+                buf,
+                "{:?}:{:?} {}: {}: {}",
+                // ts,
+                std::thread::current().name().unwrap_or("None"),
+                std::thread::current().id(),
+                record.target(),
+                buf.default_level_style(record.level())
+                    .value(record.level()),
+                record.args()
+            )
+        })
+        .init();
+    log::trace!("what 's happening babe");
     let requests = vec![
         (
             "example.com".to_string(),
@@ -134,14 +149,15 @@ fn main() {
     ];
 
     let results = async_std::task::block_on(many_requests(requests));
-    eprintln!();
-    eprintln!();
+    log::info!("");
+    log::info!("");
     for result in results {
         match result {
-            Ok((_, color)) => eprintln!("{}", "response retrived {...}".color(color)),
-            Err(err) => eprintln!("error: {}", err),
+            Ok((_, color)) => log::info!("{}", "response retrived {...}".color(color)),
+            Err(err) => log::info!("error: {}", err),
         }
     }
 
-    println!("current thread name {:?} ", std::thread::current().id())
+    log::info!("current thread name {:?} ", std::thread::current().id());
+    Ok(())
 }
