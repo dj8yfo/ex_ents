@@ -32,6 +32,7 @@ fn cheapo_request<'b, 'a: 'b>(
         socket.read_to_string(&mut response).await?;
         helper_print(&"retrived response".color(color));
 
+        log::debug!("{}", "about to returen result from threadpool subfuture".color(color));
         Ok((response, color))
     }
 }
@@ -92,12 +93,16 @@ async fn many_requests(
     for (host, port, path, color) in requests {
         handles.push(task::spawn(cheapo_request(&host, port, &path, color)));
     }
+    log::debug!("spawned all subtasks on threadpool executor");
 
     let mut results = vec![];
     for handle in handles {
         results.push(handle.await);
+    log::debug!("obtained resutl from subfuture in main asyn function");
     }
 
+    log::debug!("collected results of individual requests futures in main async function
+    future");
     results
 }
 
