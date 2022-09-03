@@ -1,6 +1,4 @@
 // start snippet lib-preamble
-#[cfg(test)]
-extern crate quickcheck;
 
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::borrow::Borrow;
@@ -135,11 +133,15 @@ where
 
 // start snippet lib-hashmap-test-preamble
 #[cfg(test)]
-mod test {
-    extern crate quickcheck;
+extern crate quickcheck;
+#[cfg(test)]
+extern crate rand;
 
+#[cfg(test)]
+mod test {
     use super::*;
     use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
+    use rand::{thread_rng, Rng};
     // end snippet lib-hashmap-test-preamble
 
     // start snippet lib-hashmap-test-gwyg
@@ -148,7 +150,7 @@ mod test {
         fn property(k: u16, v: u16) -> TestResult {
             let mut system_under_test = HashMap::new();
 
-            println!("test get and insert {} -> {}", k, v);
+            // println!("test get and insert {} -> {}", k, v);
             assert_eq!(None, system_under_test.insert(k, v));
             assert_eq!(Some(&v), system_under_test.get(&k));
 
@@ -156,6 +158,20 @@ mod test {
         }
         QuickCheck::new().quickcheck(property as fn(u16, u16) -> TestResult);
     }
+
+    // #[test]
+    // fn get_what_you_give_accumulate() {
+    //     let mut system_under_test = HashMap::new();
+    //     fn property(k: u16, v: u16, &mut sys: HashMap<<u16, u16>>) -> TestResult {
+    //
+    //         // println!("test get and insert {} -> {}", k, v);
+    //         assert_eq!(None, sys.insert(k, v));
+    //         assert_eq!(Some(&v), sys.get(&k));
+    //
+    //         TestResult::passed()
+    //     }
+    //     QuickCheck::new().quickcheck(property as fn(u16, u16) -> TestResult);
+    // }
     // end snippet lib-hashmap-test-gwyg
 
     // start snippet lib-hashmap-test-action
@@ -174,11 +190,10 @@ mod test {
     where
         T: Arbitrary,
     {
-        fn arbitrary<G>(g: &mut G) -> Action<T>
-        where
-            G: Gen,
+        fn arbitrary(g: &mut Gen) -> Action<T>
         {
-            let i: usize = g.gen_range(0, 100);
+            
+            let i: usize = thread_rng().gen_range(0, 100);
             match i {
                 0...50 => Action::Insert(Arbitrary::arbitrary(g), u16::arbitrary(g)),
                 _ => Action::Lookup(Arbitrary::arbitrary(g)),

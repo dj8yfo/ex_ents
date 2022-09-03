@@ -6,7 +6,8 @@ version = "0.1.0"
 rand = "0.4.2"
 
 [dev-dependencies]
-quickcheck = "0.6"
+quickcheck = "1"
+rand = "0.4.2"
 criterion = "0.1"
 
 [[bench]]
