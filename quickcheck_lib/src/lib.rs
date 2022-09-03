@@ -159,21 +159,6 @@ mod test {
         QuickCheck::new().quickcheck(property as fn(u16, u16) -> TestResult);
     }
 
-    // #[test]
-    // fn get_what_you_give_accumulate() {
-    //     let mut system_under_test = HashMap::new();
-    //     fn property(k: u16, v: u16, &mut sys: HashMap<<u16, u16>>) -> TestResult {
-    //
-    //         // println!("test get and insert {} -> {}", k, v);
-    //         assert_eq!(None, sys.insert(k, v));
-    //         assert_eq!(Some(&v), sys.get(&k));
-    //
-    //         TestResult::passed()
-    //     }
-    //     QuickCheck::new().quickcheck(property as fn(u16, u16) -> TestResult);
-    // }
-    // end snippet lib-hashmap-test-gwyg
-
     // start snippet lib-hashmap-test-action
     #[derive(Clone, Debug)]
     enum Action<T>
@@ -201,6 +186,31 @@ mod test {
         }
     }
     // end snippet lib-hashmap-test-action-arbitrary
+    #[test]
+    fn get_what_you_give_continuous() {
+        fn property<T>(actions: Vec<Action<T>>) -> TestResult 
+        where
+            T: Arbitrary + Eq + Hash + ::std::fmt::Debug + Clone,
+        {
+            let mut system_under_test = HashMap::new();
+            for action in actions.into_iter() {
+                match action {
+                    Action::Insert(k, v) => {
+                        let k_clone = k.clone();
+                        println!("test get and insert {:?} -> {:?}", k, v);
+                        system_under_test.insert(k, v);
+                        assert_eq!(Some(&v), system_under_test.get(&k_clone));
+                    }
+                    Action::Lookup(_) => { }
+                }
+            }
+
+
+            TestResult::passed()
+        }
+        QuickCheck::new().quickcheck(property as fn(Vec<Action<u8>>) -> TestResult);
+        QuickCheck::new().quickcheck(property as fn(Vec<Action<String>>) -> TestResult);
+    }
 
     // start snippet lib-hashmap-test-action-sut
     #[test]
@@ -225,6 +235,7 @@ mod test {
             TestResult::passed()
         }
         QuickCheck::new().quickcheck(property as fn(Vec<Action<u8>>) -> TestResult);
+        QuickCheck::new().quickcheck(property as fn(Vec<Action<String>>) -> TestResult);
     }
     // end snippet lib-hashmap-test-action-sut
 }
