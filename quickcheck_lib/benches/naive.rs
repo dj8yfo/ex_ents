@@ -48,12 +48,11 @@ fn insert_and_lookup_standard(mut n: u64) {
 macro_rules! insert_lookup {
     ($fn:ident, $s:expr) => {
         fn $fn(c: &mut Criterion) {
-            let naive = Fun::new("naive", |b, i| b.iter(|| insert_and_lookup_naive(*i)));
-            let standard = Fun::new("standard", |b, i| b.iter(|| insert_and_lookup_standard(*i)));
+            let mut group = c.benchmark_group(&format!("HashMap/{}", $s));
+            group.bench_with_input("naive",&$s ,|b, i| b.iter(|| insert_and_lookup_naive(*i)));
+            group.bench_with_input("standard", &$s,|b, i| b.iter(|| insert_and_lookup_standard(*i)));
+            group.finish();
 
-            let functions = vec![naive, standard];
-
-            c.bench_functions(&format!("HashMap/{}", $s), functions, &$s);
         }
     }
 }
