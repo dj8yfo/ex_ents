@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
 pub struct Links<T> {
     next: AtomicPtr<Cell<T>>,
     back_link: Option<AtomicPtr<Cell<T>>>,
-    ref_coutner: AtomicUsize,
+    ref_counter: AtomicUsize,
     claimed: AtomicBool,
 }
 
@@ -19,14 +19,40 @@ pub enum Cell<T> {
 }
 
 const GREATER_THAN_ONE: usize = 10;
+
+fn safe_read<T>(p: AtomicPtr<Cell<T>>) -> *const Cell<T> {
+    loop {
+        let q = p.load(Ordering::Acquire);
+        if q.is_null() {
+            return std::ptr::null();
+        }
+        match unsafe { &*q } {
+            Cell::Data { ref links, .. } => {
+                links.ref_counter.fetch_add(1, Ordering::Release);
+            }
+            Cell::Aux { ref links } => {
+                links.ref_counter.fetch_add(1, Ordering::Release);
+            }
+            Cell::Dummy(Dummy::First(ref links)) => {
+                links.ref_counter.fetch_add(1, Ordering::Release);
+            }
+            Cell::Dummy(Dummy::Last) => {}
+        };
+        if q == p.load(Ordering::Acquire) {
+            return q;
+        } else {
+            release(q);
+        }
+    }
+}
 fn release<T>(p: *mut Cell<T>) {
     let cnt = match unsafe { &*p } {
         Cell::Data { ref links, .. } => {
-            links.ref_coutner.fetch_sub(1, Ordering::AcqRel)
+            links.ref_counter.fetch_sub(1, Ordering::AcqRel)
         }
-        Cell::Aux { ref links } => links.ref_coutner.fetch_sub(1, Ordering::AcqRel),
+        Cell::Aux { ref links } => links.ref_counter.fetch_sub(1, Ordering::AcqRel),
         Cell::Dummy(Dummy::First(ref links)) => {
-            links.ref_coutner.fetch_sub(1, Ordering::AcqRel)
+            links.ref_counter.fetch_sub(1, Ordering::AcqRel)
         }
         Cell::Dummy(Dummy::Last) => GREATER_THAN_ONE,
     };
