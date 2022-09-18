@@ -1,5 +1,5 @@
 
-use std::{sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering}};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
 
 pub struct Links<T> {
     next: AtomicPtr<Cell<T>>,
@@ -21,11 +21,16 @@ pub enum Cell<T> {
 
 const GREATER_THAN_ONE: usize = 10;
 
-fn safe_read<T>(p: AtomicPtr<Cell<T>>) -> *const Cell<T> {
+fn safe_read<T>(p: Option<AtomicPtr<Cell<T>>>) -> Option<*const Cell<T>> {
+
+    let p = match p {
+        None => return None,
+        Some(pointer) => pointer,
+    };
     loop {
         let q = p.load(Ordering::Acquire);
         if q.is_null() {
-            return std::ptr::null();
+            return None
         }
         match unsafe { &*q } {
             Cell::Data { ref links, .. } => {
@@ -40,7 +45,7 @@ fn safe_read<T>(p: AtomicPtr<Cell<T>>) -> *const Cell<T> {
             Cell::Dummy(Dummy::Last) => {}
         };
         if q == p.load(Ordering::Acquire) {
-            return q;
+            return Some(q);
         } else {
             release(q);
         }
@@ -78,18 +83,27 @@ fn release<T>(p: *mut Cell<T>) {
 fn reclaim<T>(p: *mut Cell<T>) {
     let mut p_box: Box<Cell<T>> = unsafe { Box::from_raw(p) };
 }
-
 impl<T> Cell<T> {
-    pub fn aux(next: *mut Cell<T>) -> Cell<T> {
+    pub fn aux(ref_counter: usize, next: *mut Cell<T>) -> Cell<T> {
         Cell::Aux {
             links: Links {
                 next: AtomicPtr::new(next),
                 back_link: None,
-                ref_counter: AtomicUsize::new(1),
+                ref_counter: AtomicUsize::new(ref_counter),
                 claimed: AtomicBool::new(false),
             },
         }
     }
+
+    pub fn first(ref_counter: usize, next: *mut Cell<T>) -> Cell<T> {
+        Cell::Dummy(Dummy::First(
+            Links {
+                next: AtomicPtr::new(next),
+                back_link: None,
+                ref_counter: AtomicUsize::new(ref_counter),
+                claimed: AtomicBool::new(false),
+            },
+        ))
+    }
 }
-#[cfg(test)]
-mod tests {}
+
