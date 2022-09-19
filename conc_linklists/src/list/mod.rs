@@ -17,6 +17,10 @@ pub struct List<T> {
     first: *const Cell<T>,
     last: *const Cell<T>,
 }
+
+unsafe impl<T> Send for List<T> {}
+unsafe impl<T> Sync for List<T> {}
+
 impl<T> List<T> {
     fn new() -> Self {
         let last_box = Box::new(Cell::Dummy(Dummy::Last));
@@ -124,7 +128,7 @@ impl<T> Clone for Inserted<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::Ordering;
+    use std::{sync::{atomic::Ordering, Arc}, thread};
 
     use crate::cell::Cell;
 
@@ -219,5 +223,46 @@ mod tests {
         }
         assert_eq!(count, ITER);
 
+    }
+
+    #[test]
+    fn test_next_complex_parallel() {
+        let list: Arc<List<u32>> = Arc::new(List::new());
+
+        let mut vec_jh = vec![];
+        const NUM_THREADS: usize = 1000;
+
+        for i in 0..NUM_THREADS {
+            let list_copy = Arc::clone(&list);
+            let jh = thread::spawn(move || {
+                let mut cursor = Cursor::empty();
+
+                list_copy.first(&mut cursor);
+
+                for i in 0..ITER {
+                    list_copy.insert(&mut cursor, 42);
+                }
+            });
+            vec_jh.push(jh);
+        }
+
+        for jh in vec_jh {
+            jh.join().unwrap();
+        }
+
+
+
+        let mut cursor = Cursor::empty();
+
+        list.first(&mut cursor);
+        let mut count = 0;
+        while let Some(res) = list.next(&mut cursor) {
+            if res {
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        assert_eq!(count, ITER*NUM_THREADS);
     }
 }
