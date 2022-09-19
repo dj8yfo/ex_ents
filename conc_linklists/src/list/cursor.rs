@@ -1,17 +1,17 @@
-use std::{sync::atomic::{AtomicPtr, Ordering}};
-use crate::cell::{release_opt, release};
+use std::sync::atomic::{AtomicPtr, Ordering};
+use crate::cell::{release_opt, release, LAST_VAR_MESSAGE};
 
-use super::cell::{Cell, safe_read};
+use crate::cell::{Cell, safe_read};
 
 pub struct Cursor<T> {
-    target: Option<*mut Cell<T>>,
-    pre_aux: *mut Cell<T>,
-    pre_cell: *mut Cell<T>,
+    pub target: Option<*mut Cell<T>>,
+    pub pre_aux: *mut Cell<T>,
+    pub pre_cell: *mut Cell<T>,
 
 }
 
 fn cmp<T>(a: Option<&AtomicPtr<Cell<T>>>, b: Option<*mut Cell<T>>) -> bool {
-    let equal = a.map_or_else(
+    a.map_or_else(
         || b.is_none(),
         |ptr| {
             let val: *mut Cell<T> = ptr.load(Ordering::Acquire);
@@ -20,14 +20,19 @@ fn cmp<T>(a: Option<&AtomicPtr<Cell<T>>>, b: Option<*mut Cell<T>>) -> bool {
                 Some(target) => val == target,
             }
         },
-    );
-    equal
+    )
 }
 
-static LAST_VAR_MESSAGE : &str = "not expecting last cell variant here";
 
 impl<T> Cursor<T> {
-    fn update(&mut self, last: *mut Cell<T>) {
+    pub fn empty() -> Self {
+        Self {
+            target: None,
+            pre_aux: std::ptr::null_mut(),
+            pre_cell: std::ptr::null_mut(),
+        }
+    }
+    pub fn update(&mut self, last: *mut Cell<T>) {
         let pre_aux_next = unsafe { (*(self.pre_aux)).next() };
         let equal = cmp(pre_aux_next, self.target);
         if equal {
@@ -38,7 +43,7 @@ impl<T> Cursor<T> {
         let mut n = safe_read(unsafe { (*p).next().expect(LAST_VAR_MESSAGE) });
         release_opt(self.target);
         loop {
-            let cond = (n != last) && unsafe { !(*n).is_data_cell() };
+            let cond = (n != last) && unsafe { !(*n).is_after_aux() };
             if !cond {
                 break;
             }
