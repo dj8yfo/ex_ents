@@ -3,8 +3,8 @@ use std::sync::atomic::AtomicPtr;
 use super::cell::{Cell, Dummy};
 
 pub struct List<T> {
-    first: AtomicPtr<Cell<T>>,
-    last: AtomicPtr<Cell<T>>,
+    first: *const Cell<T>,
+    last: *const Cell<T>,
 }
 
 impl<T> List<T> {
@@ -18,8 +18,8 @@ impl<T> List<T> {
         let first_ptr = Box::into_raw(first_box);
 
         List {
-            first: AtomicPtr::new(first_ptr),
-            last: AtomicPtr::new(last_ptr),
+            first: first_ptr,
+            last: last_ptr,
         }
     }
 }

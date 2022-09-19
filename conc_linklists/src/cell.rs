@@ -124,5 +124,14 @@ impl<T> Cell<T> {
             Cell::Dummy(Dummy::Last) => None,
         }
     }
+
+    pub fn is_data_cell(&self) -> bool {
+        match self {
+            Cell::Data {..} => true,
+            Cell::Aux {..} => false,
+            Cell::Dummy(Dummy::First(..)) => false,
+            Cell::Dummy(Dummy::Last) => true,
+        }
+    }
 }
 
