@@ -85,6 +85,17 @@ use Cell::*;
 use Dummy::*;
 
 impl<T> Cell<T> {
+    pub fn data(val: T, ref_counter: usize, next: *mut Cell<T>) -> Cell<T> {
+        Data {
+            data: val,
+            links: Links {
+                next: AtomicPtr::new(next),
+                back_link: None,
+                ref_counter: AtomicUsize::new(ref_counter),
+                claimed: AtomicBool::new(false),
+            },
+        }
+    }
     pub fn aux(ref_counter: usize, next: *mut Cell<T>) -> Cell<T> {
         Aux {
             links: Links {
@@ -111,6 +122,15 @@ impl<T> Cell<T> {
                 Some(&links.next)
             }
             Dummy(Last) => None,
+        }
+    }
+
+    pub fn val(&self) -> Option<&T> {
+        match self {
+            Data { data , .. }  => {
+                Some(data)
+            }
+            Dummy(Last) | Aux {..} | Dummy(First(..))=> None,
         }
     }
 
