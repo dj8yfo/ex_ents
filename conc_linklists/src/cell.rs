@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
 
 pub static LAST_VAR_MESSAGE: &str = "not expecting last cell variant here";
+pub static TARGET_NULL_MESSAGE: &str = "not expecting None cursor target";
 
 pub struct Links<T> {
     next: AtomicPtr<Cell<T>>,

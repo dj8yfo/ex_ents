@@ -1,6 +1,13 @@
-use std::{sync::atomic::{AtomicPtr, Ordering}, ptr};
+use std::{
+    marker::PhantomData,
+    ptr,
+    sync::atomic::{AtomicPtr, Ordering},
+};
 
-use crate::cell::{safe_read, safe_read_ptr, Cell, Dummy, LAST_VAR_MESSAGE};
+use crate::cell::{
+    release, safe_read, safe_read_ptr, Cell, Dummy, LAST_VAR_MESSAGE,
+    TARGET_NULL_MESSAGE,
+};
 
 mod cursor;
 
@@ -55,6 +62,39 @@ impl<T> List<T> {
             )
             .is_ok()
     }
+
+    fn next(&self, c: &mut Cursor<T>) -> Option<bool> {
+        let target_ptr: *mut Cell<T>;
+        match c.target {
+            None => { return None}
+            Some(target) => {
+                if target == self.last as *mut Cell<T> {
+                    return Some(false);
+                }
+                target_ptr = target;
+            }
+        }
+        release(c.pre_cell);
+        c.pre_cell = safe_read_ptr(target_ptr) as *mut Cell<T>;
+        release(c.pre_aux);
+        let c_target_next = unsafe {(*target_ptr).next().expect(LAST_VAR_MESSAGE)};
+        c.pre_aux = safe_read(c_target_next) as *mut Cell<T>;
+        c.update(self.last as *mut Cell<T>);
+        Some(true)
+    }
+    fn insert(&self, c: &mut Cursor<T>, val: T) {
+        let inserted = List::prep_val(val);
+        loop {
+            let res = List::try_insert(c, inserted);
+            if res {
+                c.update(self.last as *mut Cell<T>);
+                break;
+            }
+
+            c.update(self.last as *mut Cell<T>);
+        }
+    }
+
     fn prep_val(val: T) -> Inserted<T> {
         let aux_box = Box::new(Cell::aux(1, ptr::null_mut()));
         let aux_ptr = Box::into_raw(aux_box);
@@ -67,10 +107,19 @@ impl<T> List<T> {
     }
 }
 
-#[derive(Clone)]
-struct Inserted<T>{
+struct Inserted<T> {
     data: *mut Cell<T>,
     aux: *mut Cell<T>,
+}
+
+impl<T> Copy for Inserted<T> {}
+impl<T> Clone for Inserted<T> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data,
+            aux: self.aux,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -79,7 +128,7 @@ mod tests {
 
     use crate::cell::Cell;
 
-    use super::{List, cursor::Cursor};
+    use super::{cursor::Cursor, List};
 
     #[test]
     fn test_new() {
@@ -108,6 +157,29 @@ mod tests {
 
         assert!(List::try_insert(&mut cursor, inserted_fail));
 
+        unsafe {
+            let f_aux = (*list.first).next().unwrap().load(Ordering::Relaxed);
+            let f_val = (*f_aux).next().unwrap().load(Ordering::Relaxed);
+
+            assert_eq!((*f_val).val(), Some(&84));
+
+            let s_aux = (*f_val).next().unwrap().load(Ordering::Relaxed);
+            let s_val = (*s_aux).next().unwrap().load(Ordering::Relaxed);
+
+            assert_eq!((*s_val).val(), Some(&42));
+        }
+    }
+
+    #[test]
+    fn test_insert() {
+        let list: List<u32> = List::new();
+
+        let mut cursor = Cursor::empty();
+
+        list.first(&mut cursor);
+
+        list.insert(&mut cursor, 42);
+        list.insert(&mut cursor, 84);
 
         unsafe {
             let f_aux = (*list.first).next().unwrap().load(Ordering::Relaxed);
@@ -119,9 +191,33 @@ mod tests {
             let s_val = (*s_aux).next().unwrap().load(Ordering::Relaxed);
 
             assert_eq!((*s_val).val(), Some(&42));
+        }
+    }
 
+    const ITER: usize = 1000;
+
+    #[test]
+    fn test_next() {
+        let list: List<u32> = List::new();
+
+        let mut cursor = Cursor::empty();
+
+        list.first(&mut cursor);
+
+        
+        for i in 0..ITER {
+            list.insert(&mut cursor, 42);
         }
 
+        let mut count = 0;
+        while let Some(res) = list.next(&mut cursor) {
+            if res {
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        assert_eq!(count, ITER);
 
     }
 }
