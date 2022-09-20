@@ -1,12 +1,10 @@
 use std::{
-    marker::PhantomData,
     ptr,
     sync::atomic::{AtomicPtr, Ordering},
 };
 
 use crate::cell::{
-    release, safe_read, safe_read_ptr, Cell, Dummy, LAST_VAR_MESSAGE,
-    TARGET_NULL_MESSAGE,
+    release, safe_read, safe_read_ptr, Cell, Dummy, LAST_VAR_MESSAGE
 };
 
 mod cursor;
@@ -22,6 +20,7 @@ unsafe impl<T> Send for List<T> {}
 unsafe impl<T> Sync for List<T> {}
 
 impl<T> List<T> {
+    #[allow(dead_code)]
     fn new() -> Self {
         let last_box = Box::new(Cell::Dummy(Dummy::Last));
         let last_ptr = Box::into_raw(last_box);
@@ -36,6 +35,7 @@ impl<T> List<T> {
             last: last_ptr,
         }
     }
+    #[allow(dead_code)]
     fn first(&self, c: &mut Cursor<T>) {
         c.pre_cell = safe_read_ptr(self.first) as *mut Cell<T>;
         let first_next = unsafe { (*self.first).next().expect(LAST_VAR_MESSAGE) };
@@ -45,6 +45,7 @@ impl<T> List<T> {
         c.update(self.last as *mut Cell<T>);
     }
 
+    #[allow(dead_code)]
     fn try_insert(c: &mut Cursor<T>, inserted: Inserted<T>) -> bool {
         let cursor_pre_aux_next: &AtomicPtr<Cell<T>>;
         let cursor_target: *mut Cell<T>;
@@ -69,28 +70,23 @@ impl<T> List<T> {
 
     fn try_delete(&self, c: &mut Cursor<T>) -> Option<bool> {
         let d: *mut Cell<T>;
-        match c.target {
-            None => { return Some(false)}
-            Some(target) => {
-                if target == self.last as *mut Cell<T> {
-                    return None;
-                }
-                d = target;
+        match c.get_target(self.last as *mut Cell<T>) {
+            Ok(ptr) => { d = ptr }
+            Err(opt) => {
+                return opt
             }
         }
         Some(true)
     }
 
 
+    #[allow(dead_code)]
     fn next(&self, c: &mut Cursor<T>) -> Option<bool> {
         let target_ptr: *mut Cell<T>;
-        match c.target {
-            None => { return Some(false)}
-            Some(target) => {
-                if target == self.last as *mut Cell<T> {
-                    return None;
-                }
-                target_ptr = target;
+        match c.get_target(self.last as *mut Cell<T>) {
+            Ok(ptr) => { target_ptr = ptr }
+            Err(opt) => {
+                return opt
             }
         }
         release(c.pre_cell);
@@ -101,6 +97,8 @@ impl<T> List<T> {
         c.update(self.last as *mut Cell<T>);
         Some(true)
     }
+
+    #[allow(dead_code)]
     fn insert(&self, c: &mut Cursor<T>, val: T) {
         let inserted = List::prep_val(val);
         loop {
@@ -125,6 +123,7 @@ impl<T> List<T> {
         }
     }
 }
+
 
 struct Inserted<T> {
     data: *mut Cell<T>,
@@ -157,6 +156,8 @@ mod tests {
 
         list.first(&mut cursor);
     }
+
+    #[allow(clippy::clone_on_copy)]
     #[test]
     fn test_try_insert() {
         let list: List<u32> = List::new();
@@ -224,7 +225,7 @@ mod tests {
         list.first(&mut cursor);
 
         
-        for i in 0..ITER {
+        for _ in 0..ITER {
             list.insert(&mut cursor, 42);
         }
 
@@ -247,14 +248,14 @@ mod tests {
         let mut vec_jh = vec![];
         const NUM_THREADS: usize = 1000;
 
-        for i in 0..NUM_THREADS {
+        for _ in 0..NUM_THREADS {
             let list_copy = Arc::clone(&list);
             let jh = thread::spawn(move || {
                 let mut cursor = Cursor::empty();
 
                 list_copy.first(&mut cursor);
 
-                for i in 0..ITER {
+                for _ in 0..ITER {
                     list_copy.insert(&mut cursor, 42);
                 }
             });
@@ -269,7 +270,7 @@ mod tests {
 
         list.first(&mut cursor);
         let mut count = 0;
-        while let Some(_) = list.next(&mut cursor) {
+        while list.next(&mut cursor).is_some() {
             count += 1;
         }
         assert_eq!(count, ITER*NUM_THREADS);

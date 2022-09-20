@@ -25,6 +25,7 @@ fn cmp<T>(a: Option<&AtomicPtr<Cell<T>>>, b: Option<*mut Cell<T>>) -> bool {
 
 
 impl<T> Cursor<T> {
+    #[allow(dead_code)]
     pub fn empty() -> Self {
         Self {
             target: None,
@@ -64,5 +65,17 @@ impl<T> Cursor<T> {
         }
         self.pre_aux = p;
         self.target = Some(n as *mut Cell<T>);
+    }
+
+    pub fn get_target(&self, last: *mut Cell<T>) -> Result<*mut Cell<T>, Option<bool>> {
+        match self.target {
+            None => Err(Some(false)),
+            Some(target) => {
+                if target == last {
+                    return Err(None);
+                }
+                Ok(target)
+            }
+        }
     }
 }

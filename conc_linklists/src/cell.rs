@@ -23,6 +23,7 @@ pub enum Cell<T> {
 
 const GREATER_THAN_ONE: usize = 10;
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn safe_read_ptr<T>(q: *const Cell<T>) -> *const Cell<T> {
     if q.is_null() {
         panic!("null pointer value of atomic pointer!");
@@ -54,6 +55,8 @@ pub fn release_opt<T>(p: Option<*mut Cell<T>>) {
         Some(p) => release(p),
     }
 }
+
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn release<T>(p: *mut Cell<T>) {
     let cnt = match unsafe { &*p } {
         Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
@@ -71,15 +74,13 @@ pub fn release<T>(p: *mut Cell<T>) {
         }
         Dummy(Last) | Dummy(First(..)) => true,
     };
-    if claimed {
-        return;
-    } else {
+    if !claimed {
         reclaim(p);
-    }
+    } 
 }
 
 fn reclaim<T>(p: *mut Cell<T>) {
-    let mut p_box: Box<Cell<T>> = unsafe { Box::from_raw(p) };
+    let _p_box: Box<Cell<T>> = unsafe { Box::from_raw(p) };
 }
 
 use Cell::*;
