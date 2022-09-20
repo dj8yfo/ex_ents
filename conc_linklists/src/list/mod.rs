@@ -19,7 +19,9 @@ pub struct List<T> {
 unsafe impl<T> Send for List<T> {}
 unsafe impl<T> Sync for List<T> {}
 
-impl<T> List<T> {
+use std::fmt::Debug;
+
+impl<T: Debug> List<T> {
     #[allow(dead_code)]
     fn new() -> Self {
         let last_box = Box::new(Cell::Dummy(Dummy::Last));
@@ -74,13 +76,20 @@ impl<T> List<T> {
             Ok(ptr) => ptr,
             Err(opt) => return opt,
         };
-        let n = unsafe { (*d).next().expect(LAST_VAR_MESSAGE).load(Ordering::Acquire) };
+        let n = unsafe { safe_read((*d).next().expect(LAST_VAR_MESSAGE)) as *mut Cell<T> };
         let pre_aux_next = unsafe { (*c.pre_aux).next().expect(LAST_VAR_MESSAGE) };
 
+        debug_assert!({
+            unsafe {
+                println!("pre_aux_next: csw {:?} {:p} -> {:?} {:p}", d.as_ref(), d,  n.as_ref(), n);
+            }
+            true
+        });
         let r = pre_aux_next.compare_exchange(d, n, Ordering::AcqRel, Ordering::Acquire);
         if r.is_err() {
             return Some(false);
         }
+        release(d);
         self.set_and_cycle_backlink(c, d, n)
     }
 
@@ -91,7 +100,7 @@ impl<T> List<T> {
         n: *mut Cell<T>, // aux after target
     ) -> Option<bool> {
         assert!(unsafe { (*d).set_backlink(c.pre_cell) });
-        let mut p = c.pre_cell; 
+        let mut p = safe_read_ptr(c.pre_cell) as *mut Cell<T>; 
 
         loop {
             let p_back_link = unsafe {(*p).backlink().expect(LAST_VAR_MESSAGE)};
@@ -137,11 +146,18 @@ impl<T> List<T> {
     ) -> Option<bool> {
         loop {
             let p_next = unsafe { (*p).next().unwrap() };
+
+            debug_assert!({
+                unsafe {
+                    println!("p_next: csw {:?} {:p} -> {:?} {:p}", s.as_ref(), s, n.as_ref(), n);
+                }
+                true
+            });
             let r = p_next.compare_exchange(s, n, Ordering::AcqRel, Ordering::Acquire);
+            release(s);
             if r.is_err() {
-                release(s);
                 s = safe_read(p_next) as *mut Cell<T>;
-            }
+            } 
             if List::delete_break_cond(r.is_ok(), p, n) {
                 break;
             }
@@ -235,6 +251,8 @@ mod tests {
         let mut cursor = Cursor::empty();
 
         list.first(&mut cursor);
+
+        drop(cursor);
     }
 
     #[allow(clippy::clone_on_copy)]
@@ -256,6 +274,7 @@ mod tests {
         cursor.update(list.last as *mut Cell<u32>);
 
         assert!(List::try_insert(&mut cursor, inserted_fail));
+        drop(cursor);
 
         unsafe {
             let f_aux = (*list.first).next().unwrap().load(Ordering::Relaxed);
@@ -280,6 +299,7 @@ mod tests {
 
         list.insert(&mut cursor, 42);
         list.insert(&mut cursor, 84);
+        drop(cursor);
 
         unsafe {
             let f_aux = (*list.first).next().unwrap().load(Ordering::Relaxed);
@@ -293,6 +313,50 @@ mod tests {
             assert_eq!((*s_val).val(), Some(&42));
         }
     }
+
+    #[test]
+    fn test_try_delete() {
+        let list: List<u32> = List::new();
+
+        let mut cursor = Cursor::empty();
+
+        list.first(&mut cursor);
+
+        list.insert(&mut cursor, 42);
+        list.insert(&mut cursor, 84);
+
+        cursor.update(list.last as *mut Cell<u32>);
+
+        unsafe {
+            let mut cnt = 0;
+            let mut p = list.first;
+            while !p.as_ref().unwrap().is_last() {
+                println!("{} {:?} {:p}", cnt, p.as_ref(), p);
+                cnt += 1;
+                p = p.as_ref().unwrap().next().unwrap().load(Ordering::Acquire);
+            }
+            println!("{} {:?} {:p}", cnt, p.as_ref(), p);
+
+        }
+        let r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(true));
+        drop(cursor);
+
+
+        unsafe {
+            let mut cnt = 0;
+            let mut p = list.first;
+            while !p.as_ref().unwrap().is_last() {
+                println!("{} {:?} {:p}", cnt, p.as_ref(), p);
+                cnt += 1;
+                p = p.as_ref().unwrap().next().unwrap().load(Ordering::Acquire);
+            }
+            println!("{} {:?} {:p}", cnt, p.as_ref(), p);
+            assert_eq!(cnt, 4);
+
+        }
+    }
+
 
     const ITER: usize = 1000;
 
@@ -310,12 +374,8 @@ mod tests {
         }
 
         let mut count = 0;
-        while let Some(res) = list.next(&mut cursor) {
-            if res {
-                count += 1;
-            } else {
-                break;
-            }
+        while list.next(&mut cursor).is_some() {
+            count += 1;
         }
         assert_eq!(count, ITER);
 
@@ -347,6 +407,15 @@ mod tests {
         }
 
         let mut cursor = Cursor::empty();
+
+        list.first(&mut cursor);
+        let mut count = 0;
+        while list.next(&mut cursor).is_some() {
+            count += 1;
+        }
+        assert_eq!(count, ITER*NUM_THREADS);
+
+        cursor = Cursor::empty();
 
         list.first(&mut cursor);
         let mut count = 0;

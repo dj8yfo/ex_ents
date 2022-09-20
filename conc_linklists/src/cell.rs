@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering};
 pub static LAST_VAR_MESSAGE: &str = "not expecting last cell variant here";
 pub static TARGET_NULL_MESSAGE: &str = "not expecting None cursor target";
 
+#[derive(Debug)]
 pub struct Links<T> {
     next: AtomicPtr<Cell<T>>,
     back_link: AtomicPtr<Cell<T>>,
@@ -10,11 +11,13 @@ pub struct Links<T> {
     claimed: AtomicBool,
 }
 
+#[derive(Debug)]
 pub enum Dummy<T> {
     First(Links<T>),
     Last,
 }
 
+#[derive(Debug)]
 pub enum Cell<T> {
     Data { links: Links<T>, data: T },
     Aux { links: Links<T> },
@@ -28,6 +31,9 @@ pub fn safe_read_ptr<T>(q: *const Cell<T>) -> *const Cell<T> {
     if q.is_null() {
         panic!("null pointer value of atomic pointer!");
     }
+    
+    use self::Cell::*;
+    use self::Dummy::*;
     match unsafe { &*q } {
         Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
             links.ref_counter.fetch_add(1, Ordering::Release);
@@ -58,6 +64,8 @@ pub fn release_opt<T>(p: Option<*mut Cell<T>>) {
 
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub fn release<T>(p: *mut Cell<T>) {
+    use self::Cell::*;
+    use self::Dummy::*;
     let cnt = match unsafe { &*p } {
         Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
             links.ref_counter.fetch_sub(1, Ordering::AcqRel)
@@ -83,11 +91,10 @@ fn reclaim<T>(p: *mut Cell<T>) {
     let _p_box: Box<Cell<T>> = unsafe { Box::from_raw(p) };
 }
 
-use Cell::*;
-use Dummy::*;
 
 impl<T> Cell<T> {
     pub fn data(val: T, ref_counter: usize, next: *mut Cell<T>) -> Cell<T> {
+        use self::Cell::*;
         Data {
             data: val,
             links: Links {
@@ -99,6 +106,7 @@ impl<T> Cell<T> {
         }
     }
     pub fn aux(ref_counter: usize, next: *mut Cell<T>) -> Cell<T> {
+        use self::Cell::*;
         Aux {
             links: Links {
                 next: AtomicPtr::new(next),
@@ -110,6 +118,8 @@ impl<T> Cell<T> {
     }
 
     pub fn first(ref_counter: usize, next: *mut Cell<T>) -> Cell<T> {
+        use self::Dummy::*;
+        use self::Cell::*;
         Dummy(First(Links {
             next: AtomicPtr::new(next),
             back_link: AtomicPtr::default(),
@@ -119,6 +129,8 @@ impl<T> Cell<T> {
     }
 
     pub fn next(&self) -> Option<&AtomicPtr<Cell<T>>> {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
                 Some(&links.next)
@@ -127,6 +139,8 @@ impl<T> Cell<T> {
         }
     }
     pub fn backlink(&self) -> Option<&AtomicPtr<Cell<T>>> {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
                 Some(&links.back_link)
@@ -136,6 +150,8 @@ impl<T> Cell<T> {
     }
 
     pub fn set_backlink(&self, back: *mut Cell<T>) -> bool {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
                 links.back_link.store(back, Ordering::Release);
@@ -146,6 +162,8 @@ impl<T> Cell<T> {
     }
 
     pub fn val(&self) -> Option<&T> {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { data , .. }  => {
                 Some(data)
@@ -155,6 +173,8 @@ impl<T> Cell<T> {
     }
 
     pub fn set_next(&self, next: *mut Cell<T>) -> bool {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
                 links.next.store(next, Ordering::Release);
@@ -164,6 +184,8 @@ impl<T> Cell<T> {
         }
     }
     pub fn is_data_cell(&self) -> bool {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { .. } => true,
             Aux { .. } => false,
@@ -172,6 +194,8 @@ impl<T> Cell<T> {
         }
     }
     pub fn is_aux(&self) -> bool {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { .. } => false,
             Aux { .. } => true,
@@ -180,6 +204,8 @@ impl<T> Cell<T> {
         }
     }
     pub fn is_last(&self) -> bool {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { .. } => false,
             Aux { .. } => false,
@@ -188,6 +214,8 @@ impl<T> Cell<T> {
         }
     }
     pub fn is_after_aux(&self) -> bool {
+        use self::Cell::*;
+        use self::Dummy::*;
         match self {
             Data { .. } => true,
             Aux { .. } => false,

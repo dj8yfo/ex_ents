@@ -1,0 +1,30 @@
+
+running 6 tests
+test list::tests::test_insert ... ok0 Some(Dummy(First(Links { next: 0x7f12c0000d20, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7f12c0000d60
+1 Some(Aux { links: Links { next: 0x7f12c0000e60, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f12c0000d20
+
+test list::tests::test_new ... ok
+2 Some(Data { links: Links { next: 0x7f12c0000e20, back_link: 0x0, ref_counter: 2, claimed: false }, data: 84 }) 0x7f12c0000e60
+3 Some(Aux { links: Links { next: 0x7f12c0000de0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f12c0000e20
+4 Some(Data { links: Links { next: 0x7f12c0000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f12c0000de0
+5 Some(Aux { links: Links { next: 0x7f12c0000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f12c0000da0
+6 Some(Dummy(Last)) 0x7f12c0000ce0
+pre_aux_next: csw Some(Data { links: Links { next: 0x7f12c0000e20, back_link: 0x0, ref_counter: 2, claimed: false }, data: 84 }) 0x7f12c0000e60 -> Some(Aux { links: Links { next: 0x7f12c0000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f12c0000e20
+p_next: csw Some(Aux { links: Links { next: 0x7f12c0000e20, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7f12c0000d20 -> Some(Aux { links: Links { next: 0x7f12c0000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f12c0000e20
+0 Some(Dummy(First(Links { next: 0x7f12c0000e20, back_link: 0x0, ref_counter: 1, claimed: false }))) 0x7f12c0000d60
+1 Some(Aux { links: Links { next: 0x7f12c0000de0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f12c0000e20
+2 Some(Data { links: Links { next: 0x7f12c0000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f12c0000de0
+3 Some(Aux { links: Links { next: 0x7f12c0000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f12c0000da0
+4 Some(Dummy(Last)) 0x7f12c0000ce0
+test list::tests::test_try_delete ... ok
+test list::tests::test_try_insert ... ok
+test list::tests::test_next ... ok
+test list::tests::test_next_complex_parallel ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -9,6 +9,13 @@ pub struct Cursor<T> {
     pub pre_cell: *mut Cell<T>,
 
 }
+impl<T> Drop for Cursor<T> {
+    fn drop(&mut self) {
+        release_opt(self.target);
+        release(self.pre_aux);
+        release(self.pre_cell);
+    }
+}
 
 fn cmp<T>(a: Option<&AtomicPtr<Cell<T>>>, b: Option<*mut Cell<T>>) -> bool {
     a.map_or_else(
