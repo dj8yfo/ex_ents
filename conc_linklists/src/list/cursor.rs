@@ -67,7 +67,7 @@ impl<T> Cursor<T> {
         self.target = Some(n as *mut Cell<T>);
     }
 
-    pub fn get_target(&self, last: *mut Cell<T>) -> Result<*mut Cell<T>, Option<bool>> {
+    pub fn get_target_not_last(&self, last: *mut Cell<T>) -> Result<*mut Cell<T>, Option<bool>> {
         match self.target {
             None => Err(Some(false)),
             Some(target) => {

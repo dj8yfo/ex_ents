@@ -5,7 +5,7 @@ pub static TARGET_NULL_MESSAGE: &str = "not expecting None cursor target";
 
 pub struct Links<T> {
     next: AtomicPtr<Cell<T>>,
-    back_link: Option<AtomicPtr<Cell<T>>>,
+    back_link: AtomicPtr<Cell<T>>,
     ref_counter: AtomicUsize,
     claimed: AtomicBool,
 }
@@ -92,7 +92,7 @@ impl<T> Cell<T> {
             data: val,
             links: Links {
                 next: AtomicPtr::new(next),
-                back_link: None,
+                back_link: AtomicPtr::default(),
                 ref_counter: AtomicUsize::new(ref_counter),
                 claimed: AtomicBool::new(false),
             },
@@ -102,7 +102,7 @@ impl<T> Cell<T> {
         Aux {
             links: Links {
                 next: AtomicPtr::new(next),
-                back_link: None,
+                back_link: AtomicPtr::default(),
                 ref_counter: AtomicUsize::new(ref_counter),
                 claimed: AtomicBool::new(false),
             },
@@ -112,7 +112,7 @@ impl<T> Cell<T> {
     pub fn first(ref_counter: usize, next: *mut Cell<T>) -> Cell<T> {
         Dummy(First(Links {
             next: AtomicPtr::new(next),
-            back_link: None,
+            back_link: AtomicPtr::default(),
             ref_counter: AtomicUsize::new(ref_counter),
             claimed: AtomicBool::new(false),
         }))
@@ -124,6 +124,24 @@ impl<T> Cell<T> {
                 Some(&links.next)
             }
             Dummy(Last) => None,
+        }
+    }
+    pub fn backlink(&self) -> Option<&AtomicPtr<Cell<T>>> {
+        match self {
+            Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
+                Some(&links.back_link)
+            }
+            Dummy(Last) => None,
+        }
+    }
+
+    pub fn set_backlink(&self, back: *mut Cell<T>) -> bool {
+        match self {
+            Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
+                links.back_link.store(back, Ordering::Release);
+                true
+            }
+            Dummy(Last) => false,
         }
     }
 

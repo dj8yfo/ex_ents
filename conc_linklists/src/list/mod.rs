@@ -68,31 +68,88 @@ impl<T> List<T> {
             .is_ok()
     }
 
+    #[allow(dead_code)]
     fn try_delete(&self, c: &mut Cursor<T>) -> Option<bool> {
-        let d: *mut Cell<T>;
-        match c.get_target(self.last as *mut Cell<T>) {
-            Ok(ptr) => { d = ptr }
-            Err(opt) => {
-                return opt
-            }
+        let d: *mut Cell<T> = match c.get_target_not_last(self.last as *mut Cell<T>) {
+            Ok(ptr) => ptr,
+            Err(opt) => return opt,
+        };
+        let n = unsafe { (*d).next().expect(LAST_VAR_MESSAGE).load(Ordering::Acquire) };
+        let pre_aux_next = unsafe { (*c.pre_aux).next().expect(LAST_VAR_MESSAGE) };
+
+        let r = pre_aux_next.compare_exchange(d, n, Ordering::AcqRel, Ordering::Acquire);
+        if r.is_err() {
+            return Some(false);
         }
-        Some(true)
+        self.set_and_cycle_backlink(c, d, n)
     }
+
+    fn set_and_cycle_backlink(
+        &self,
+        c: &mut Cursor<T>, 
+        d: *mut Cell<T>, // deleted target
+        n: *mut Cell<T>, // aux after target
+    ) -> Option<bool> {
+        assert!(unsafe { (*d).set_backlink(c.pre_cell) });
+        let mut p = c.pre_cell; 
+
+        loop {
+            let p_back_link = unsafe {(*p).backlink().expect(LAST_VAR_MESSAGE)};
+            if p_back_link.load(Ordering::Acquire).is_null() {
+                break;
+            }
+            let q = safe_read(p_back_link);
+            release(p);
+            p = q as *mut Cell<T>;
+        }
+
+        let s = safe_read(unsafe {(*p).next().expect(LAST_VAR_MESSAGE)});
+
+
+        self.advance_n_to_rightmost_aux(p, s as *mut Cell<T>, n)
+    }
+
+    fn advance_n_to_rightmost_aux(
+        &self,
+        p: *mut Cell<T>, // firstmost non-null backlink
+        s: *mut Cell<T>, // p's next
+        mut n: *mut Cell<T>, // aux after target
+    ) -> Option<bool> {
+        loop {
+            let n_next = unsafe {(*n).next().expect(LAST_VAR_MESSAGE)};
+            let cond = unsafe {(*n_next.load(Ordering::Acquire)).is_after_aux()};
+            if cond {
+                break;
+            }
+            let q = safe_read(n_next);
+            release(n);
+            n = q as *mut Cell<T>;
+        }
+
+        self.delete_csw_chain(p, s, n)
+    }
+
+    fn delete_csw_chain(
+        &self,
+        p: *mut Cell<T>, // firstmost non-null backlink
+        s: *mut Cell<T>, // p's next
+        n: *mut Cell<T>, // aux after target
+    ) -> Option<bool> {
+        Some(true) // TODO
+    }
+
 
 
     #[allow(dead_code)]
     fn next(&self, c: &mut Cursor<T>) -> Option<bool> {
-        let target_ptr: *mut Cell<T>;
-        match c.get_target(self.last as *mut Cell<T>) {
-            Ok(ptr) => { target_ptr = ptr }
-            Err(opt) => {
-                return opt
-            }
-        }
+        let target_ptr = match c.get_target_not_last(self.last as *mut Cell<T>) {
+            Ok(ptr) => ptr,
+            Err(opt) => return opt,
+        };
         release(c.pre_cell);
         c.pre_cell = safe_read_ptr(target_ptr) as *mut Cell<T>;
         release(c.pre_aux);
-        let c_target_next = unsafe {(*target_ptr).next().expect(LAST_VAR_MESSAGE)};
+        let c_target_next = unsafe { (*target_ptr).next().expect(LAST_VAR_MESSAGE) };
         c.pre_aux = safe_read(c_target_next) as *mut Cell<T>;
         c.update(self.last as *mut Cell<T>);
         Some(true)
@@ -123,8 +180,6 @@ impl<T> List<T> {
         }
     }
 }
-
-
 struct Inserted<T> {
     data: *mut Cell<T>,
     aux: *mut Cell<T>,
