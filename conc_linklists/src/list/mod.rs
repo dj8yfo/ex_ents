@@ -131,13 +131,38 @@ impl<T> List<T> {
 
     fn delete_csw_chain(
         &self,
-        p: *mut Cell<T>, // firstmost non-null backlink
-        s: *mut Cell<T>, // p's next
-        n: *mut Cell<T>, // aux after target
+        p: *mut Cell<T>,     // firstmost non-null backlink
+        mut s: *mut Cell<T>, // p's next
+        n: *mut Cell<T>,     // aux after target
     ) -> Option<bool> {
-        Some(true) // TODO
+        loop {
+            let p_next = unsafe { (*p).next().unwrap() };
+            let r = p_next.compare_exchange(s, n, Ordering::AcqRel, Ordering::Acquire);
+            if r.is_err() {
+                release(s);
+                s = safe_read(p_next) as *mut Cell<T>;
+            }
+            if List::delete_break_cond(r.is_ok(), p, n) {
+                break;
+            }
+        }
+        release(p);
+        release(s);
+        release(n);
+        Some(true)
     }
+    fn delete_break_cond(result: bool, p: *mut Cell<T>, n: *mut Cell<T>) -> bool {
+        let back_not_null = !unsafe {
+            (*p).backlink()
+                .expect(LAST_VAR_MESSAGE)
+                .load(Ordering::Acquire)
+                .is_null()
+        };
+        let n_next =unsafe {(*n).next().expect(LAST_VAR_MESSAGE).load(Ordering::Acquire)};
+        let n_next_not_normal = unsafe { !n_next.as_ref().expect("not null").is_after_aux()};
 
+        result || back_not_null || n_next_not_normal
+    }
 
 
     #[allow(dead_code)]
