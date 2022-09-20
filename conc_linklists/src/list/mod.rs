@@ -67,13 +67,28 @@ impl<T> List<T> {
             .is_ok()
     }
 
+    fn try_delete(&self, c: &mut Cursor<T>) -> Option<bool> {
+        let d: *mut Cell<T>;
+        match c.target {
+            None => { return Some(false)}
+            Some(target) => {
+                if target == self.last as *mut Cell<T> {
+                    return None;
+                }
+                d = target;
+            }
+        }
+        Some(true)
+    }
+
+
     fn next(&self, c: &mut Cursor<T>) -> Option<bool> {
         let target_ptr: *mut Cell<T>;
         match c.target {
-            None => { return None}
+            None => { return Some(false)}
             Some(target) => {
                 if target == self.last as *mut Cell<T> {
-                    return Some(false);
+                    return None;
                 }
                 target_ptr = target;
             }
@@ -250,18 +265,12 @@ mod tests {
             jh.join().unwrap();
         }
 
-
-
         let mut cursor = Cursor::empty();
 
         list.first(&mut cursor);
         let mut count = 0;
-        while let Some(res) = list.next(&mut cursor) {
-            if res {
-                count += 1;
-            } else {
-                break;
-            }
+        while let Some(_) = list.next(&mut cursor) {
+            count += 1;
         }
         assert_eq!(count, ITER*NUM_THREADS);
     }
