@@ -63,14 +63,13 @@ impl<'a, T: Debug> Cursor<'a, T> {
             let pre_cell_next =
                 unsafe { (*self.pre_cell).next().expect(LAST_VAR_MESSAGE) };
 
-            assert!(pre_cell_next
+            let _r = pre_cell_next
                 .compare_exchange(
                     p,
                     n as *mut Cell<T>,
                     Ordering::AcqRel,
                     Ordering::Acquire
-                )
-                .is_ok());
+                );
             release(self.reclaim, p);
             p = n as *mut Cell<T>;
             n = safe_read(unsafe { (*p).next().expect(LAST_VAR_MESSAGE) });

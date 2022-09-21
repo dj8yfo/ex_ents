@@ -82,19 +82,6 @@ impl<T: Debug> List<T> {
             .is_ok()
     }
 
-    fn delete(&self, c: &mut Cursor<T>) -> bool {
-        loop {
-            let res = self.try_delete(c);
-            match res {
-                Some(true) => return true,
-                Some(false) => match self.next(c) {
-                    Some(_) => {},
-                    None => return false,
-                },
-                None => return false,
-            }
-        }
-    }
     #[allow(dead_code)]
     fn try_delete(&self, c: &mut Cursor<T>) -> Option<bool> {
         let d: *mut Cell<T> = match c.get_target_not_last(self.last as *mut Cell<T>) {
@@ -371,7 +358,6 @@ mod tests {
 
         for _ in 0..ITER {
             list.insert(&mut cursor, 42);
-            debug_print_list(&list);
         }
         drop(cursor);
 
@@ -380,9 +366,9 @@ mod tests {
             let mut cursor = Cursor::empty(&mut reclaim);
 
             list.first(&mut cursor);
-            let r = list.delete(&mut cursor);
+            let r = list.try_delete(&mut cursor);
             debug_print_list(&list);
-            if r {
+            if let Some(true) = r {
                 cnt += 1;
             }
             println!("drop cnt: {} {:?}", cnt, r);
@@ -518,8 +504,8 @@ mod tests {
     }
 
 
-    const ITER: usize = 1000;
-    const DELETED: usize = 300;
+    const ITER: usize = 10;
+    const DELETED: usize = 4;
 
     #[test]
     fn test_next() {
@@ -579,6 +565,58 @@ mod tests {
         }
         assert_eq!(count, ITER*NUM_THREADS);
 
+    }
+
+    #[test]
+    fn test_insert_delete_treiber_complex_parallel() {
+        let list: Arc<List<u32>> = Arc::new(List::new());
+
+        let mut vec_jh = vec![];
+        let mut vec_delete_jh = vec![];
+        const NUM_THREADS: usize = 10;
+
+        for _ in 0..NUM_THREADS {
+            let list_copy = Arc::clone(&list);
+            let jh = thread::spawn(move || {
+                let mut reclaim = ReclaimCnt::new();
+                let mut cursor = Cursor::empty(&mut reclaim);
+
+                list_copy.first(&mut cursor);
+
+                for _ in 0..ITER {
+                    list_copy.insert(&mut cursor, 42);
+                }
+            });
+            vec_jh.push(jh);
+        }
+
+        for _ in 0..NUM_THREADS {
+            let list_copy = Arc::clone(&list);
+            let jh = thread::spawn(move || {
+                for _ in 0..DELETED {
+                    loop {
+                        let mut reclaim = ReclaimCnt::new();
+                        let mut cursor = Cursor::empty(&mut reclaim);
+
+                        list_copy.first(&mut cursor);
+                        let r = list_copy.try_delete(&mut cursor);
+                        drop(cursor);
+                        if let Some(true) = r {
+                            break;
+                        }
+                    }
+                }
+            });
+            vec_delete_jh.push(jh);
+        }
+
+        for jh in vec_jh {
+            println!("{:?}", jh.join());
+        }
+        for jh in vec_delete_jh {
+            println!("{:?}", jh.join());
+        }
+
         let mut reclaim = ReclaimCnt::new();
         let mut cursor = Cursor::empty(&mut reclaim);
 
@@ -587,6 +625,6 @@ mod tests {
         while list.next(&mut cursor).is_some() {
             count += 1;
         }
-        assert_eq!(count, ITER*NUM_THREADS);
+        assert_eq!(count, (ITER-DELETED)*NUM_THREADS);
     }
 }
