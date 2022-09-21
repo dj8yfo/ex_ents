@@ -108,7 +108,7 @@ impl<T: Debug> List<T> {
         if r.is_err() {
             return Some(false);
         }
-        release(d);
+        release(c.reclaim, d);
         self.set_and_cycle_backlink(c, d, n)
     }
 
@@ -127,17 +127,18 @@ impl<T: Debug> List<T> {
                 break;
             }
             let q = safe_read(p_back_link);
-            release(p);
+            release(c.reclaim, p);
             p = q as *mut Cell<T>;
         }
 
         let s = safe_read(unsafe { (*p).next().expect(LAST_VAR_MESSAGE) });
 
-        self.advance_n_to_rightmost_aux(p, s as *mut Cell<T>, n)
+        self.advance_n_to_rightmost_aux(c, p, s as *mut Cell<T>, n)
     }
 
     fn advance_n_to_rightmost_aux(
         &self,
+        c: &mut Cursor<T>,
         p: *mut Cell<T>,     // firstmost non-null backlink
         s: *mut Cell<T>,     // p's next
         mut n: *mut Cell<T>, // aux after target
@@ -149,15 +150,16 @@ impl<T: Debug> List<T> {
                 break;
             }
             let q = safe_read(n_next);
-            release(n);
+            release(c.reclaim, n);
             n = q as *mut Cell<T>;
         }
 
-        self.delete_csw_chain(p, s, n)
+        self.delete_csw_chain(c, p, s, n)
     }
 
     fn delete_csw_chain(
         &self,
+        c: &mut Cursor<T>,
         p: *mut Cell<T>,     // firstmost non-null backlink
         mut s: *mut Cell<T>, // p's next
         n: *mut Cell<T>,     // aux after target
@@ -178,7 +180,7 @@ impl<T: Debug> List<T> {
                 true
             });
             let r = p_next.compare_exchange(s, n, Ordering::AcqRel, Ordering::Acquire);
-            release(s);
+            release(c.reclaim, s);
             if r.is_err() {
                 s = safe_read(p_next) as *mut Cell<T>;
             }
@@ -186,9 +188,9 @@ impl<T: Debug> List<T> {
                 break;
             }
         }
-        release(p);
-        release(s);
-        release(n);
+        release(c.reclaim, p);
+        release(c.reclaim, s);
+        release(c.reclaim, n);
         Some(true)
     }
     fn delete_break_cond(result: bool, p: *mut Cell<T>, n: *mut Cell<T>) -> bool {
@@ -212,9 +214,9 @@ impl<T: Debug> List<T> {
             Ok(ptr) => ptr,
             Err(opt) => return opt,
         };
-        release(c.pre_cell);
+        release(c.reclaim, c.pre_cell);
         c.pre_cell = safe_read_ptr(target_ptr) as *mut Cell<T>;
-        release(c.pre_aux);
+        release(c.reclaim, c.pre_aux);
         let c_target_next = unsafe { (*target_ptr).next().expect(LAST_VAR_MESSAGE) };
         c.pre_aux = safe_read(c_target_next) as *mut Cell<T>;
         c.update(self.last as *mut Cell<T>);
@@ -265,7 +267,7 @@ impl<T> Clone for Inserted<T> {
 mod tests {
     use std::{sync::{atomic::Ordering, Arc}, thread};
 
-    use crate::cell::Cell;
+    use crate::cell::{Cell, ReclaimCnt};
 
     use super::{cursor::Cursor, List};
 
@@ -273,7 +275,8 @@ mod tests {
     fn test_new() {
         let list: List<u32> = List::new();
 
-        let mut cursor = Cursor::empty();
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
 
         list.first(&mut cursor);
 
@@ -285,7 +288,8 @@ mod tests {
     fn test_try_insert() {
         let list: List<u32> = List::new();
 
-        let mut cursor = Cursor::empty();
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
 
         list.first(&mut cursor);
 
@@ -318,7 +322,8 @@ mod tests {
     fn test_insert() {
         let list: List<u32> = List::new();
 
-        let mut cursor = Cursor::empty();
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
 
         list.first(&mut cursor);
 
@@ -340,10 +345,11 @@ mod tests {
     }
 
     #[test]
-    fn test_try_delete() {
+    fn test_try_delete1() {
         let list: List<u32> = List::new();
 
-        let mut cursor = Cursor::empty();
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
 
         list.first(&mut cursor);
 
@@ -352,23 +358,46 @@ mod tests {
 
         cursor.update(list.last as *mut Cell<u32>);
 
-        unsafe {
-            let mut cnt = 0;
-            let mut p = list.first;
-            while !p.as_ref().unwrap().is_last() {
-                println!("{} {:?} {:p}", cnt, p.as_ref(), p);
-                cnt += 1;
-                p = p.as_ref().unwrap().next().unwrap().load(Ordering::Acquire);
-            }
-            println!("{} {:?} {:p}", cnt, p.as_ref(), p);
-
-        }
         let mut r = list.try_delete(&mut cursor);
         assert_eq!(r, Some(true));
+        assert_eq!(cursor.reclaim.val(), 0);
 
 
+        r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(false));
+        assert_eq!(cursor.reclaim.val(), 0);
+        r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(false));
+        assert_eq!(cursor.reclaim.val(), 0);
+
+        assert!(list.next(&mut cursor).is_some());
+
+        drop(cursor);
+        assert_eq!(reclaim.val(), 2);
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
+        list.first(&mut cursor);
+
+        r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(true));
+        r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(false));
+        
+        assert!(list.next(&mut cursor).is_some());
+        r = list.try_delete(&mut cursor);
+        
+        // last position
+        assert_eq!(r, None);
+        assert!(list.next(&mut cursor).is_none());
+        assert_eq!(cursor.reclaim.val(), 0);
+        drop(cursor);
+        assert_eq!(reclaim.val(), 1);
+
+    }
+
+    fn debug_print_list<T: std::fmt::Debug>(list: &List<T>) -> usize {
+        let mut cnt = 0;
         unsafe {
-            let mut cnt = 0;
             let mut p = list.first;
             while !p.as_ref().unwrap().is_last() {
                 println!("{} {:?} {:p}", cnt, p.as_ref(), p);
@@ -376,9 +405,31 @@ mod tests {
                 p = p.as_ref().unwrap().next().unwrap().load(Ordering::Acquire);
             }
             println!("{} {:?} {:p}", cnt, p.as_ref(), p);
-            assert_eq!(cnt, 4);
 
         }
+        cnt
+
+    }
+
+    #[test]
+    fn test_try_delete2() {
+        let list: List<u32> = List::new();
+
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
+
+        list.first(&mut cursor);
+
+        list.insert(&mut cursor, 42);
+        list.insert(&mut cursor, 84);
+
+        cursor.update(list.last as *mut Cell<u32>);
+
+        let mut r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(true));
+        assert_eq!(cursor.reclaim.val(), 0);
+
+        assert_eq!(debug_print_list(&list), 4);
 
         unsafe {
             let f_aux = (*list.first).next().unwrap().load(Ordering::Relaxed);
@@ -401,34 +452,22 @@ mod tests {
         assert_eq!(r, Some(true));
         r = list.try_delete(&mut cursor);
         assert_eq!(r, Some(false));
-
+        
         assert!(list.next(&mut cursor).is_some());
         r = list.try_delete(&mut cursor);
-
+        
         // last position
         assert_eq!(r, None);
         assert!(list.next(&mut cursor).is_none());
-
-        unsafe {
-            let mut cnt = 0;
-            let mut p = list.first;
-            while !p.as_ref().unwrap().is_last() {
-                println!("{} {:?} {:p}", cnt, p.as_ref(), p);
-                cnt += 1;
-                p = p.as_ref().unwrap().next().unwrap().load(Ordering::Acquire);
-            }
-            println!("{} {:?} {:p}", cnt, p.as_ref(), p);
-            assert_eq!(cnt, 2);
-
-        }
-
+        
+        assert_eq!(debug_print_list(&list), 2);
+        
         unsafe {
             let f_aux = (*list.first).next().unwrap().load(Ordering::Relaxed);
             let f_val = (*f_aux).next().unwrap().load(Ordering::Relaxed);
         
             assert!(f_val.as_ref().unwrap().is_last());
         }
-        drop(cursor);
 
     }
 
@@ -439,7 +478,8 @@ mod tests {
     fn test_next() {
         let list: List<u32> = List::new();
 
-        let mut cursor = Cursor::empty();
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
 
         list.first(&mut cursor);
 
@@ -466,7 +506,8 @@ mod tests {
         for _ in 0..NUM_THREADS {
             let list_copy = Arc::clone(&list);
             let jh = thread::spawn(move || {
-                let mut cursor = Cursor::empty();
+                let mut reclaim = ReclaimCnt::new();
+                let mut cursor = Cursor::empty(&mut reclaim);
 
                 list_copy.first(&mut cursor);
 
@@ -481,7 +522,8 @@ mod tests {
             jh.join().unwrap();
         }
 
-        let mut cursor = Cursor::empty();
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
 
         list.first(&mut cursor);
         let mut count = 0;
@@ -490,7 +532,8 @@ mod tests {
         }
         assert_eq!(count, ITER*NUM_THREADS);
 
-        cursor = Cursor::empty();
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
 
         list.first(&mut cursor);
         let mut count = 0;

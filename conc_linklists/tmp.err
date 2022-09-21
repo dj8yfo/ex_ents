@@ -1,29 +1,34 @@
 
 running 1 test
-[run csw on cursor.pre_aux.next()]:  Some(Dummy(Last)) 0x7f638c000ce0 -> Some(Data { links: Links { next: 0x7f638c000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f638c000de0
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f638c000da0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7f638c000de0 -> Some(Data { links: Links { next: 0x7f638c000e20, back_link: 0x0, ref_counter: 1, claimed: false }, data: 84 }) 0x7f638c000e60
-0 Some(Dummy(First(Links { next: 0x7f638c000d20, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7f638c000d60
-1 Some(Aux { links: Links { next: 0x7f638c000e60, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f638c000d20
-2 Some(Data { links: Links { next: 0x7f638c000e20, back_link: 0x0, ref_counter: 2, claimed: false }, data: 84 }) 0x7f638c000e60
-3 Some(Aux { links: Links { next: 0x7f638c000de0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f638c000e20
-4 Some(Data { links: Links { next: 0x7f638c000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f638c000de0
-5 Some(Aux { links: Links { next: 0x7f638c000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f638c000da0
-6 Some(Dummy(Last)) 0x7f638c000ce0
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f638c000e20, back_link: 0x0, ref_counter: 2, claimed: false }, data: 84 }) 0x7f638c000e60 -> Some(Aux { links: Links { next: 0x7f638c000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f638c000e20
-[run csw on firstmost_backlink.next()] Some(Aux { links: Links { next: 0x7f638c000e20, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7f638c000d20 -> Some(Aux { links: Links { next: 0x7f638c000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f638c000e20
-0 Some(Dummy(First(Links { next: 0x7f638c000e20, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7f638c000d60
-1 Some(Aux { links: Links { next: 0x7f638c000de0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f638c000e20
-2 Some(Data { links: Links { next: 0x7f638c000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f638c000de0
-3 Some(Aux { links: Links { next: 0x7f638c000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f638c000da0
-4 Some(Dummy(Last)) 0x7f638c000ce0
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f638c000e20, back_link: 0x7f638c000d60, ref_counter: 1, claimed: false }, data: 84 }) 0x7f638c000e60 -> Some(Aux { links: Links { next: 0x7f638c000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f638c000e20
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f638c000e20, back_link: 0x7f638c000d60, ref_counter: 1, claimed: false }, data: 84 }) 0x7f638c000e60 -> Some(Aux { links: Links { next: 0x7f638c000de0, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7f638c000e20
-[run drop on]: Some(Aux { links: Links { next: 0x7f638c000e20, back_link: 0x0, ref_counter: 0, claimed: true } }) 0x7f638c000d20
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f638c000da0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7f638c000de0 -> Some(Aux { links: Links { next: 0x7f638c000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f638c000da0
-[run csw on firstmost_backlink.next()] Some(Aux { links: Links { next: 0x7f638c000da0, back_link: 0x0, ref_counter: 5, claimed: false } }) 0x7f638c000e20 -> Some(Aux { links: Links { next: 0x7f638c000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f638c000da0
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f638c000da0, back_link: 0x7f638c000e60, ref_counter: 1, claimed: false }, data: 42 }) 0x7f638c000de0 -> Some(Aux { links: Links { next: 0x7f638c000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f638c000da0
-[run drop on]: Some(Data { links: Links { next: 0x7f638c000e20, back_link: 0x7f638c000d60, ref_counter: 0, claimed: true }, data: 84 }) 0x7f638c000e60
-[run drop on]: Some(Data { links: Links { next: 0x7f638c000da0, back_link: 0x7f638c000e60, ref_counter: 0, claimed: true }, data: 42 }) 0x7f638c000de0
+[run csw on cursor.pre_aux.next()]:  Some(Dummy(Last)) 0x7f5a54000ce0 -> Some(Data { links: Links { next: 0x7f5a54000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f5a54000de0
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f5a54000da0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7f5a54000de0 -> Some(Data { links: Links { next: 0x7f5a54000e20, back_link: 0x0, ref_counter: 1, claimed: false }, data: 84 }) 0x7f5a54000e60
+0 Some(Dummy(First(Links { next: 0x7f5a54000d20, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7f5a54000d60
+1 Some(Aux { links: Links { next: 0x7f5a54000e60, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f5a54000d20
+2 Some(Data { links: Links { next: 0x7f5a54000e20, back_link: 0x0, ref_counter: 2, claimed: false }, data: 84 }) 0x7f5a54000e60
+3 Some(Aux { links: Links { next: 0x7f5a54000de0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f5a54000e20
+4 Some(Data { links: Links { next: 0x7f5a54000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f5a54000de0
+5 Some(Aux { links: Links { next: 0x7f5a54000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f5a54000da0
+6 Some(Dummy(Last)) 0x7f5a54000ce0
+
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f5a54000e20, back_link: 0x0, ref_counter: 2, claimed: false }, data: 84 }) 0x7f5a54000e60 -> Some(Aux { links: Links { next: 0x7f5a54000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f5a54000e20
+[run csw on firstmost_backlink.next()] Some(Aux { links: Links { next: 0x7f5a54000e20, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7f5a54000d20 -> Some(Aux { links: Links { next: 0x7f5a54000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f5a54000e20
+
+0 Some(Dummy(First(Links { next: 0x7f5a54000e20, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7f5a54000d60
+1 Some(Aux { links: Links { next: 0x7f5a54000de0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f5a54000e20
+2 Some(Data { links: Links { next: 0x7f5a54000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f5a54000de0
+3 Some(Aux { links: Links { next: 0x7f5a54000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f5a54000da0
+4 Some(Dummy(Last)) 0x7f5a54000ce0
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f5a54000e20, back_link: 0x7f5a54000d60, ref_counter: 1, claimed: false }, data: 84 }) 0x7f5a54000e60 -> Some(Aux { links: Links { next: 0x7f5a54000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f5a54000e20
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f5a54000e20, back_link: 0x7f5a54000d60, ref_counter: 1, claimed: false }, data: 84 }) 0x7f5a54000e60 -> Some(Aux { links: Links { next: 0x7f5a54000de0, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7f5a54000e20
+[run drop on]: Some(Aux { links: Links { next: 0x7f5a54000e20, back_link: 0x0, ref_counter: 0, claimed: true } }) 0x7f5a54000d20
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f5a54000da0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7f5a54000de0 -> Some(Aux { links: Links { next: 0x7f5a54000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f5a54000da0
+[run csw on firstmost_backlink.next()] Some(Aux { links: Links { next: 0x7f5a54000da0, back_link: 0x0, ref_counter: 5, claimed: false } }) 0x7f5a54000e20 -> Some(Aux { links: Links { next: 0x7f5a54000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f5a54000da0
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f5a54000da0, back_link: 0x7f5a54000e60, ref_counter: 1, claimed: false }, data: 42 }) 0x7f5a54000de0 -> Some(Aux { links: Links { next: 0x7f5a54000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f5a54000da0
+[run drop on]: Some(Data { links: Links { next: 0x7f5a54000e20, back_link: 0x7f5a54000d60, ref_counter: 0, claimed: true }, data: 84 }) 0x7f5a54000e60
+0 Some(Dummy(First(Links { next: 0x7f5a54000da0, back_link: 0x0, ref_counter: 1, claimed: false }))) 0x7f5a54000d60
+1 Some(Aux { links: Links { next: 0x7f5a54000ce0, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7f5a54000da0
+2 Some(Dummy(Last)) 0x7f5a54000ce0
+[run drop on]: Some(Data { links: Links { next: 0x7f5a54000da0, back_link: 0x7f5a54000e60, ref_counter: 0, claimed: true }, data: 42 }) 0x7f5a54000de0
 test list::tests::test_try_delete ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s

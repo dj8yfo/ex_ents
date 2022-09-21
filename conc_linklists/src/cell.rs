@@ -50,20 +50,51 @@ pub fn safe_read<T: Debug>(p: &AtomicPtr<Cell<T>>) -> *const Cell<T> {
         if q == p.load(Ordering::Acquire) {
             return q;
         } else {
-            release(q);
+            release_pure(q);
         }
     }
 }
 
-pub fn release_opt<T: Debug>(p: Option<*mut Cell<T>>) -> usize {
+fn release_opt_pure<T: Debug>(p: Option<*mut Cell<T>>) -> bool {
     match p {
-        None => 0,
-        Some(p) => release(p),
+        None => false,
+        Some(p) => release_pure(p),
+    }
+}
+
+pub struct ReclaimCnt {
+    counter: usize, 
+}
+
+impl ReclaimCnt {
+    pub fn new() -> Self {
+        ReclaimCnt {
+            counter: 0,
+        }
+    }
+    pub fn inc(&mut self) {
+        self.counter += 1;
+    }
+
+    pub fn val(&self) -> usize {
+        self.counter
+    }
+}
+
+pub fn release_opt<T: Debug>(reclaim: &mut ReclaimCnt, p: Option<*mut Cell<T>>) {
+    if release_opt_pure(p) {
+        reclaim.inc();
+    }
+}
+
+pub fn release<T: Debug>(reclaim: &mut ReclaimCnt, p: *mut Cell<T>) {
+    if release_pure(p) {
+        reclaim.inc();
     }
 }
 
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub fn release<T: Debug>(p: *mut Cell<T>) -> usize{
+fn release_pure<T: Debug>(p: *mut Cell<T>) -> bool{
     use self::Cell::*;
     use self::Dummy::*;
     let cnt = match unsafe { &*p } {
@@ -74,7 +105,7 @@ pub fn release<T: Debug>(p: *mut Cell<T>) -> usize{
         Dummy(Last) => GREATER_THAN_ONE,
     };
     if cnt > 1 {
-        return 0;
+        return false;
     }
     let claimed = match unsafe { &*p } {
         Data { ref links, .. } | Aux { ref links }  => {
@@ -84,9 +115,9 @@ pub fn release<T: Debug>(p: *mut Cell<T>) -> usize{
     };
     if !claimed {
         reclaim(p);
-        return 1
+        return true
     } 
-    0
+    false
 }
 
 use std::fmt::Debug;
