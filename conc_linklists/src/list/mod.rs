@@ -593,19 +593,19 @@ mod tests {
         for _ in 0..NUM_THREADS {
             let list_copy = Arc::clone(&list);
             let jh = thread::spawn(move || {
+                let mut cnt = 0;
                 for _ in 0..DELETED {
-                    loop {
-                        let mut reclaim = ReclaimCnt::new();
-                        let mut cursor = Cursor::empty(&mut reclaim);
+                    let mut reclaim = ReclaimCnt::new();
+                    let mut cursor = Cursor::empty(&mut reclaim);
 
-                        list_copy.first(&mut cursor);
-                        let r = list_copy.try_delete(&mut cursor);
-                        drop(cursor);
-                        if let Some(true) = r {
-                            break;
-                        }
+                    list_copy.first(&mut cursor);
+                    let r = list_copy.try_delete(&mut cursor);
+                    drop(cursor);
+                    if let Some(true) = r {
+                        cnt +=1 ;
                     }
                 }
+                cnt
             });
             vec_delete_jh.push(jh);
         }
@@ -613,8 +613,9 @@ mod tests {
         for jh in vec_jh {
             println!("{:?}", jh.join());
         }
+        let mut deleted_total = 0;
         for jh in vec_delete_jh {
-            println!("{:?}", jh.join());
+            deleted_total += jh.join().unwrap();
         }
 
         let mut reclaim = ReclaimCnt::new();
@@ -625,6 +626,6 @@ mod tests {
         while list.next(&mut cursor).is_some() {
             count += 1;
         }
-        assert_eq!(count, (ITER-DELETED)*NUM_THREADS);
+        assert_eq!(count, (ITER-deleted_total)*NUM_THREADS);
     }
 }
