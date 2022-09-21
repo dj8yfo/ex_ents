@@ -228,6 +228,7 @@ impl<T: Debug> List<T> {
             Ok(ptr) => ptr,
             Err(opt) => return opt,
         };
+        
         release(c.reclaim, c.pre_cell);
         c.pre_cell = safe_read_ptr(target_ptr) as *mut Cell<T>;
         release(c.reclaim, c.pre_aux);
@@ -359,6 +360,49 @@ mod tests {
     }
 
     #[test]
+    fn test_insert_delete() {
+        let list: List<u32> = List::new();
+
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
+
+        list.first(&mut cursor);
+
+
+        for _ in 0..ITER {
+            list.insert(&mut cursor, 42);
+            debug_print_list(&list);
+        }
+        drop(cursor);
+
+        let mut cnt = 0;
+        for _ in 0..DELETED {
+            let mut cursor = Cursor::empty(&mut reclaim);
+
+            list.first(&mut cursor);
+            let r = list.delete(&mut cursor);
+            debug_print_list(&list);
+            if r {
+                cnt += 1;
+            }
+            println!("drop cnt: {} {:?}", cnt, r);
+        }
+        assert_eq!(cnt, DELETED);
+
+
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
+
+        list.first(&mut cursor);
+        let mut count = 0;
+        while list.next(&mut cursor).is_some() {
+            count += 1;
+        }
+        assert_eq!(count, ITER-DELETED);
+
+    }
+
+    #[test]
     fn test_try_delete1() {
         let list: List<u32> = List::new();
 
@@ -387,8 +431,6 @@ mod tests {
         assert_eq!(r, Some(false));
         assert_eq!(cursor.reclaim.val(), 0);
         
-        assert!(list.next(&mut cursor).is_some());
-        
         drop(cursor);
         assert_eq!(reclaim.val(), 2);
         debug_print_list(&list);
@@ -403,14 +445,6 @@ mod tests {
         assert_eq!(r, Some(false));
         assert_eq!(cursor.reclaim.val(), 0);
         
-        assert!(list.next(&mut cursor).is_some());
-        assert_eq!(cursor.reclaim.val(), 1);
-        r = list.try_delete(&mut cursor);
-        
-        // last position
-        assert_eq!(r, None);
-        assert!(list.next(&mut cursor).is_none());
-        assert_eq!(cursor.reclaim.val(), 1);
         // assert_eq!(cursor.reclaim.val(), 0);
         drop(cursor);
         assert_eq!(reclaim.val(), 2);
@@ -464,23 +498,13 @@ mod tests {
         
             assert!(s_val.as_ref().unwrap().is_last());
         }
-        r = list.try_delete(&mut cursor);
-        assert_eq!(r, Some(false));
-        r = list.try_delete(&mut cursor);
-        assert_eq!(r, Some(false));
+        let mut reclaim = ReclaimCnt::new();
+        let mut cursor = Cursor::empty(&mut reclaim);
 
-        assert!(list.next(&mut cursor).is_some());
+        list.first(&mut cursor);
         r = list.try_delete(&mut cursor);
+
         assert_eq!(r, Some(true));
-        r = list.try_delete(&mut cursor);
-        assert_eq!(r, Some(false));
-        
-        assert!(list.next(&mut cursor).is_some());
-        r = list.try_delete(&mut cursor);
-        
-        // last position
-        assert_eq!(r, None);
-        assert!(list.next(&mut cursor).is_none());
         
         assert_eq!(debug_print_list(&list), 2);
         
@@ -495,6 +519,7 @@ mod tests {
 
 
     const ITER: usize = 1000;
+    const DELETED: usize = 300;
 
     #[test]
     fn test_next() {

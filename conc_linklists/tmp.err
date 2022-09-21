@@ -1,46 +1,73 @@
 
-running 1 test
-0 Some(Dummy(First(Links { next: 0x7f8ec0000d20, back_link: 0x0, ref_counter: 1, claimed: false }))) 0x7f8ec0000d60
-1 Some(Aux { links: Links { next: 0x7f8ec0000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f8ec0000d20
-2 Some(Dummy(Last)) 0x7f8ec0000ce0
-[run csw on cursor.pre_aux.next()]:  Some(Dummy(Last)) 0x7f8ec0000ce0 -> Some(Data { links: Links { next: 0x7f8ec0000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f8ec0000de0
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f8ec0000da0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7f8ec0000de0 -> Some(Data { links: Links { next: 0x7f8ec0000e20, back_link: 0x0, ref_counter: 1, claimed: false }, data: 84 }) 0x7f8ec0000e60
-0 Some(Dummy(First(Links { next: 0x7f8ec0000d20, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7f8ec0000d60
-1 Some(Aux { links: Links { next: 0x7f8ec0000e60, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f8ec0000d20
-2 Some(Data { links: Links { next: 0x7f8ec0000e20, back_link: 0x0, ref_counter: 2, claimed: false }, data: 84 }) 0x7f8ec0000e60
-3 Some(Aux { links: Links { next: 0x7f8ec0000de0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f8ec0000e20
-4 Some(Data { links: Links { next: 0x7f8ec0000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f8ec0000de0
-5 Some(Aux { links: Links { next: 0x7f8ec0000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f8ec0000da0
-6 Some(Dummy(Last)) 0x7f8ec0000ce0
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f8ec0000e20, back_link: 0x0, ref_counter: 2, claimed: false }, data: 84 }) 0x7f8ec0000e60 -> Some(Aux { links: Links { next: 0x7f8ec0000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f8ec0000e20
-[run csw on firstmost_backlink.next()] Some(Aux { links: Links { next: 0x7f8ec0000e20, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7f8ec0000d20 -> Some(Aux { links: Links { next: 0x7f8ec0000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f8ec0000e20
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f8ec0000e20, back_link: 0x7f8ec0000d60, ref_counter: 1, claimed: false }, data: 84 }) 0x7f8ec0000e60 -> Some(Aux { links: Links { next: 0x7f8ec0000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f8ec0000e20
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f8ec0000e20, back_link: 0x7f8ec0000d60, ref_counter: 1, claimed: false }, data: 84 }) 0x7f8ec0000e60 -> Some(Aux { links: Links { next: 0x7f8ec0000de0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f8ec0000e20
-[run drop on]: Some(Aux { links: Links { next: 0x7f8ec0000e20, back_link: 0x0, ref_counter: 0, claimed: true } }) 0x7f8ec0000d20
-[run drop on]: Some(Data { links: Links { next: 0x7f8ec0000e20, back_link: 0x7f8ec0000d60, ref_counter: 0, claimed: true }, data: 84 }) 0x7f8ec0000e60
-
-0 Some(Dummy(First(Links { next: 0x7f8ec0000e20, back_link: 0x0, ref_counter: 1, claimed: false }))) 0x7f8ec0000d60
-1 Some(Aux { links: Links { next: 0x7f8ec0000de0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f8ec0000e20
-2 Some(Data { links: Links { next: 0x7f8ec0000da0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7f8ec0000de0
-3 Some(Aux { links: Links { next: 0x7f8ec0000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f8ec0000da0
-4 Some(Dummy(Last)) 0x7f8ec0000ce0
-
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f8ec0000da0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7f8ec0000de0 -> Some(Aux { links: Links { next: 0x7f8ec0000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f8ec0000da0
-[run csw on firstmost_backlink.next()] Some(Aux { links: Links { next: 0x7f8ec0000da0, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7f8ec0000e20 -> Some(Aux { links: Links { next: 0x7f8ec0000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f8ec0000da0
-
-0 Some(Dummy(First(Links { next: 0x7f8ec0000da0, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7f8ec0000d60
-1 Some(Aux { links: Links { next: 0x7f8ec0000ce0, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7f8ec0000da0
-2 Some(Dummy(Last)) 0x7f8ec0000ce0
-
-[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7f8ec0000da0, back_link: 0x7f8ec0000d60, ref_counter: 1, claimed: false }, data: 42 }) 0x7f8ec0000de0 -> Some(Aux { links: Links { next: 0x7f8ec0000ce0, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7f8ec0000da0
-[run drop on]: Some(Aux { links: Links { next: 0x7f8ec0000da0, back_link: 0x0, ref_counter: 0, claimed: true } }) 0x7f8ec0000e20
-[run drop on]: Some(Data { links: Links { next: 0x7f8ec0000da0, back_link: 0x7f8ec0000d60, ref_counter: 0, claimed: true }, data: 42 }) 0x7f8ec0000de0
-test list::tests::test_try_delete1 ... FAILED
+running 8 tests
+test list::tests::test_insert ... ok
+test list::tests::test_new ... ok
+test list::tests::test_next ... ok
+test list::tests::test_insert_delete ... FAILED
+test list::tests::test_try_delete1 ... ok
+test list::tests::test_try_delete2 ... ok
+test list::tests::test_try_insert ... ok
+test list::tests::test_next_complex_parallel ... ok
 
 failures:
 
-failures:
-    list::tests::test_try_delete1
+---- list::tests::test_insert_delete stdout ----
+[run csw on cursor.pre_aux.next()]:  Some(Dummy(Last)) 0x7fcd88000d10 -> Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88000e10
+0 Some(Dummy(First(Links { next: 0x7fcd88000d50, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7fcd88000d90
+1 Some(Aux { links: Links { next: 0x7fcd88000e10, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88000d50
+2 Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7fcd88000e10
+3 Some(Aux { links: Links { next: 0x7fcd88000d10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88000dd0
+4 Some(Dummy(Last)) 0x7fcd88000d10
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7fcd88000e10 -> Some(Data { links: Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88001340
+0 Some(Dummy(First(Links { next: 0x7fcd88000d50, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7fcd88000d90
+1 Some(Aux { links: Links { next: 0x7fcd88001340, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88000d50
+2 Some(Data { links: Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7fcd88001340
+3 Some(Aux { links: Links { next: 0x7fcd88000e10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88001300
+4 Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88000e10
+5 Some(Aux { links: Links { next: 0x7fcd88000d10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88000dd0
+6 Some(Dummy(Last)) 0x7fcd88000d10
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7fcd88001340 -> Some(Data { links: Links { next: 0x7fcd88000e50, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88000e90
+0 Some(Dummy(First(Links { next: 0x7fcd88000d50, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7fcd88000d90
+1 Some(Aux { links: Links { next: 0x7fcd88000e90, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88000d50
+2 Some(Data { links: Links { next: 0x7fcd88000e50, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7fcd88000e90
+3 Some(Aux { links: Links { next: 0x7fcd88001340, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88000e50
+4 Some(Data { links: Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88001340
+5 Some(Aux { links: Links { next: 0x7fcd88000e10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88001300
+6 Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88000e10
+7 Some(Aux { links: Links { next: 0x7fcd88000d10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88000dd0
+8 Some(Dummy(Last)) 0x7fcd88000d10
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7fcd88000e50, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7fcd88000e90 -> Some(Aux { links: Links { next: 0x7fcd88001340, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88000e50
+[run csw on firstmost_backlink.next()] Some(Aux { links: Links { next: 0x7fcd88000e50, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7fcd88000d50 -> Some(Aux { links: Links { next: 0x7fcd88001340, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88000e50
+0 Some(Dummy(First(Links { next: 0x7fcd88000e50, back_link: 0x0, ref_counter: 2, claimed: false }))) 0x7fcd88000d90
+1 Some(Aux { links: Links { next: 0x7fcd88001340, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88000e50
+2 Some(Data { links: Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88001340
+3 Some(Aux { links: Links { next: 0x7fcd88000e10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88001300
+4 Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88000e10
+5 Some(Aux { links: Links { next: 0x7fcd88000d10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88000dd0
+6 Some(Dummy(Last)) 0x7fcd88000d10
+drop cnt: 1 true
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7fcd88000e50, back_link: 0x7fcd88000d90, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88000e90 -> Some(Aux { links: Links { next: 0x7fcd88001340, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88000e50
+[run drop on]: Some(Aux { links: Links { next: 0x7fcd88000e50, back_link: 0x0, ref_counter: 0, claimed: true } }) 0x7fcd88000d50
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7fcd88001340 -> Some(Aux { links: Links { next: 0x7fcd88000e10, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88001300
+[run csw on firstmost_backlink.next()] Some(Aux { links: Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 3, claimed: false } }) 0x7fcd88000e50 -> Some(Aux { links: Links { next: 0x7fcd88000e10, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88001300
+0 Some(Dummy(First(Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 1, claimed: false }))) 0x7fcd88000d90
+1 Some(Aux { links: Links { next: 0x7fcd88000e10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88001300
+2 Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x0, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88000e10
+3 Some(Aux { links: Links { next: 0x7fcd88000d10, back_link: 0x0, ref_counter: 1, claimed: false } }) 0x7fcd88000dd0
+4 Some(Dummy(Last)) 0x7fcd88000d10
+drop cnt: 2 true
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7fcd88001300, back_link: 0x7fcd88000e90, ref_counter: 1, claimed: false }, data: 42 }) 0x7fcd88001340 -> Some(Aux { links: Links { next: 0x7fcd88000e10, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88001300
+[run drop on]: Some(Data { links: Links { next: 0x7fcd88000e50, back_link: 0x7fcd88000d90, ref_counter: 0, claimed: true }, data: 42 }) 0x7fcd88000e90
+[run drop on]: Some(Aux { links: Links { next: 0x7fcd88001300, back_link: 0x0, ref_counter: 0, claimed: true } }) 0x7fcd88000e50
+[run csw on cursor.pre_aux.next()]:  Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x0, ref_counter: 2, claimed: false }, data: 42 }) 0x7fcd88000e10 -> Some(Aux { links: Links { next: 0x7fcd88000d10, back_link: 0x0, ref_counter: 2, claimed: false } }) 0x7fcd88000dd0
+thread 'list::tests::test_insert_delete' panicked at 'not expecting last cell variant here', src/list/mod.rs:139:56
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[run drop on]: Some(Data { links: Links { next: 0x7fcd88000dd0, back_link: 0x7fcd88001340, ref_counter: 0, claimed: true }, data: 42 }) 0x7fcd88000e10
+[run drop on]: Some(Data { links: Links { next: 0x7fcd88001300, back_link: 0x7fcd88000e90, ref_counter: 0, claimed: true }, data: 42 }) 0x7fcd88001340
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+failures:
+    list::tests::test_insert_delete
+
+test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
 
