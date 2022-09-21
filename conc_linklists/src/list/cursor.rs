@@ -2,14 +2,15 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 use crate::cell::{release_opt, release, LAST_VAR_MESSAGE};
 
 use crate::cell::{Cell, safe_read};
+use std::fmt::Debug;
 
-pub struct Cursor<T> {
+pub struct Cursor<T: Debug> {
     pub target: Option<*mut Cell<T>>,
     pub pre_aux: *mut Cell<T>,
     pub pre_cell: *mut Cell<T>,
 
 }
-impl<T> Drop for Cursor<T> {
+impl<T: Debug> Drop for Cursor<T> {
     fn drop(&mut self) {
         release_opt(self.target);
         release(self.pre_aux);
@@ -31,7 +32,7 @@ fn cmp<T>(a: Option<&AtomicPtr<Cell<T>>>, b: Option<*mut Cell<T>>) -> bool {
 }
 
 
-impl<T> Cursor<T> {
+impl<T: Debug> Cursor<T> {
     #[allow(dead_code)]
     pub fn empty() -> Self {
         Self {
@@ -58,6 +59,7 @@ impl<T> Cursor<T> {
 
             let pre_cell_next =
                 unsafe { (*self.pre_cell).next().expect(LAST_VAR_MESSAGE) };
+
             assert!(pre_cell_next
                 .compare_exchange(
                     p,

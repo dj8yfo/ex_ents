@@ -20,7 +20,6 @@ unsafe impl<T> Send for List<T> {}
 unsafe impl<T> Sync for List<T> {}
 
 use std::fmt::Debug;
-
 impl<T: Debug> List<T> {
     #[allow(dead_code)]
     fn new() -> Self {
@@ -60,6 +59,19 @@ impl<T: Debug> List<T> {
 
             cursor_pre_aux_next = (*c.pre_aux).next().expect(LAST_VAR_MESSAGE);
         }
+
+        debug_assert!({
+            unsafe {
+                println!(
+                    "[run csw on cursor.pre_aux.next()]:  {:?} {:p} -> {:?} {:p}",
+                    cursor_target.as_ref(),
+                    cursor_target,
+                    inserted.data.as_ref(),
+                    inserted.data
+                );
+            }
+            true
+        });
         cursor_pre_aux_next
             .compare_exchange(
                 cursor_target,
@@ -76,12 +88,19 @@ impl<T: Debug> List<T> {
             Ok(ptr) => ptr,
             Err(opt) => return opt,
         };
-        let n = unsafe { safe_read((*d).next().expect(LAST_VAR_MESSAGE)) as *mut Cell<T> };
+        let n =
+            unsafe { safe_read((*d).next().expect(LAST_VAR_MESSAGE)) as *mut Cell<T> };
         let pre_aux_next = unsafe { (*c.pre_aux).next().expect(LAST_VAR_MESSAGE) };
 
         debug_assert!({
             unsafe {
-                println!("pre_aux_next: csw {:?} {:p} -> {:?} {:p}", d.as_ref(), d,  n.as_ref(), n);
+                println!(
+                    "[run csw on cursor.pre_aux.next()]:  {:?} {:p} -> {:?} {:p}",
+                    d.as_ref(),
+                    d,
+                    n.as_ref(),
+                    n
+                );
             }
             true
         });
@@ -95,15 +114,15 @@ impl<T: Debug> List<T> {
 
     fn set_and_cycle_backlink(
         &self,
-        c: &mut Cursor<T>, 
+        c: &mut Cursor<T>,
         d: *mut Cell<T>, // deleted target
         n: *mut Cell<T>, // aux after target
     ) -> Option<bool> {
         assert!(unsafe { (*d).set_backlink(c.pre_cell) });
-        let mut p = safe_read_ptr(c.pre_cell) as *mut Cell<T>; 
+        let mut p = safe_read_ptr(c.pre_cell) as *mut Cell<T>;
 
         loop {
-            let p_back_link = unsafe {(*p).backlink().expect(LAST_VAR_MESSAGE)};
+            let p_back_link = unsafe { (*p).backlink().expect(LAST_VAR_MESSAGE) };
             if p_back_link.load(Ordering::Acquire).is_null() {
                 break;
             }
@@ -112,21 +131,20 @@ impl<T: Debug> List<T> {
             p = q as *mut Cell<T>;
         }
 
-        let s = safe_read(unsafe {(*p).next().expect(LAST_VAR_MESSAGE)});
-
+        let s = safe_read(unsafe { (*p).next().expect(LAST_VAR_MESSAGE) });
 
         self.advance_n_to_rightmost_aux(p, s as *mut Cell<T>, n)
     }
 
     fn advance_n_to_rightmost_aux(
         &self,
-        p: *mut Cell<T>, // firstmost non-null backlink
-        s: *mut Cell<T>, // p's next
+        p: *mut Cell<T>,     // firstmost non-null backlink
+        s: *mut Cell<T>,     // p's next
         mut n: *mut Cell<T>, // aux after target
     ) -> Option<bool> {
         loop {
-            let n_next = unsafe {(*n).next().expect(LAST_VAR_MESSAGE)};
-            let cond = unsafe {(*n_next.load(Ordering::Acquire)).is_after_aux()};
+            let n_next = unsafe { (*n).next().expect(LAST_VAR_MESSAGE) };
+            let cond = unsafe { (*n_next.load(Ordering::Acquire)).is_after_aux() };
             if cond {
                 break;
             }
@@ -149,7 +167,13 @@ impl<T: Debug> List<T> {
 
             debug_assert!({
                 unsafe {
-                    println!("p_next: csw {:?} {:p} -> {:?} {:p}", s.as_ref(), s, n.as_ref(), n);
+                    println!(
+                        "[run csw on firstmost_backlink.next()] {:?} {:p} -> {:?} {:p}",
+                        s.as_ref(),
+                        s,
+                        n.as_ref(),
+                        n
+                    );
                 }
                 true
             });
@@ -157,7 +181,7 @@ impl<T: Debug> List<T> {
             release(s);
             if r.is_err() {
                 s = safe_read(p_next) as *mut Cell<T>;
-            } 
+            }
             if List::delete_break_cond(r.is_ok(), p, n) {
                 break;
             }
@@ -174,12 +198,13 @@ impl<T: Debug> List<T> {
                 .load(Ordering::Acquire)
                 .is_null()
         };
-        let n_next =unsafe {(*n).next().expect(LAST_VAR_MESSAGE).load(Ordering::Acquire)};
-        let n_next_not_normal = unsafe { !n_next.as_ref().expect("not null").is_after_aux()};
+        let n_next =
+            unsafe { (*n).next().expect(LAST_VAR_MESSAGE).load(Ordering::Acquire) };
+        let n_next_not_normal =
+            unsafe { !n_next.as_ref().expect("not null").is_after_aux() };
 
         result || back_not_null || n_next_not_normal
     }
-
 
     #[allow(dead_code)]
     fn next(&self, c: &mut Cursor<T>) -> Option<bool> {
@@ -338,9 +363,8 @@ mod tests {
             println!("{} {:?} {:p}", cnt, p.as_ref(), p);
 
         }
-        let r = list.try_delete(&mut cursor);
+        let mut r = list.try_delete(&mut cursor);
         assert_eq!(r, Some(true));
-        drop(cursor);
 
 
         unsafe {
@@ -355,6 +379,57 @@ mod tests {
             assert_eq!(cnt, 4);
 
         }
+
+        unsafe {
+            let f_aux = (*list.first).next().unwrap().load(Ordering::Relaxed);
+            let f_val = (*f_aux).next().unwrap().load(Ordering::Relaxed);
+        
+            assert_eq!((*f_val).val(), Some(&42));
+        
+            let s_aux = (*f_val).next().unwrap().load(Ordering::Relaxed);
+            let s_val = (*s_aux).next().unwrap().load(Ordering::Relaxed);
+        
+            assert!(s_val.as_ref().unwrap().is_last());
+        }
+        r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(false));
+        r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(false));
+
+        assert!(list.next(&mut cursor).is_some());
+        r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(true));
+        r = list.try_delete(&mut cursor);
+        assert_eq!(r, Some(false));
+
+        assert!(list.next(&mut cursor).is_some());
+        r = list.try_delete(&mut cursor);
+
+        // last position
+        assert_eq!(r, None);
+        assert!(list.next(&mut cursor).is_none());
+
+        unsafe {
+            let mut cnt = 0;
+            let mut p = list.first;
+            while !p.as_ref().unwrap().is_last() {
+                println!("{} {:?} {:p}", cnt, p.as_ref(), p);
+                cnt += 1;
+                p = p.as_ref().unwrap().next().unwrap().load(Ordering::Acquire);
+            }
+            println!("{} {:?} {:p}", cnt, p.as_ref(), p);
+            assert_eq!(cnt, 2);
+
+        }
+
+        unsafe {
+            let f_aux = (*list.first).next().unwrap().load(Ordering::Relaxed);
+            let f_val = (*f_aux).next().unwrap().load(Ordering::Relaxed);
+        
+            assert!(f_val.as_ref().unwrap().is_last());
+        }
+        drop(cursor);
+
     }
 
 

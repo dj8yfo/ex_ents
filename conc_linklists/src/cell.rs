@@ -43,7 +43,7 @@ pub fn safe_read_ptr<T>(q: *const Cell<T>) -> *const Cell<T> {
     };
     q
 }
-pub fn safe_read<T>(p: &AtomicPtr<Cell<T>>) -> *const Cell<T> {
+pub fn safe_read<T: Debug>(p: &AtomicPtr<Cell<T>>) -> *const Cell<T> {
     loop {
         let q = p.load(Ordering::Acquire);
         safe_read_ptr(q);
@@ -55,15 +55,15 @@ pub fn safe_read<T>(p: &AtomicPtr<Cell<T>>) -> *const Cell<T> {
     }
 }
 
-pub fn release_opt<T>(p: Option<*mut Cell<T>>) {
+pub fn release_opt<T: Debug>(p: Option<*mut Cell<T>>) -> usize {
     match p {
-        None => {}
+        None => 0,
         Some(p) => release(p),
     }
 }
 
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub fn release<T>(p: *mut Cell<T>) {
+pub fn release<T: Debug>(p: *mut Cell<T>) -> usize{
     use self::Cell::*;
     use self::Dummy::*;
     let cnt = match unsafe { &*p } {
@@ -74,7 +74,7 @@ pub fn release<T>(p: *mut Cell<T>) {
         Dummy(Last) => GREATER_THAN_ONE,
     };
     if cnt > 1 {
-        return;
+        return 0;
     }
     let claimed = match unsafe { &*p } {
         Data { ref links, .. } | Aux { ref links }  => {
@@ -84,10 +84,20 @@ pub fn release<T>(p: *mut Cell<T>) {
     };
     if !claimed {
         reclaim(p);
+        return 1
     } 
+    0
 }
 
-fn reclaim<T>(p: *mut Cell<T>) {
+use std::fmt::Debug;
+
+fn reclaim<T: Debug>(p: *mut Cell<T>) {
+    debug_assert!({
+        unsafe {
+            println!("[run drop on]: {:?} {:p}", p.as_ref(), p);
+        }
+        true
+    });
     let _p_box: Box<Cell<T>> = unsafe { Box::from_raw(p) };
 }
 
