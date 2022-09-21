@@ -82,6 +82,19 @@ impl<T: Debug> List<T> {
             .is_ok()
     }
 
+    fn delete(&self, c: &mut Cursor<T>) -> bool {
+        loop {
+            let res = self.try_delete(c);
+            match res {
+                Some(true) => return true,
+                Some(false) => match self.next(c) {
+                    Some(_) => {},
+                    None => return false,
+                },
+                None => return false,
+            }
+        }
+    }
     #[allow(dead_code)]
     fn try_delete(&self, c: &mut Cursor<T>) -> Option<bool> {
         let d: *mut Cell<T> = match c.get_target_not_last(self.last as *mut Cell<T>) {
@@ -106,6 +119,7 @@ impl<T: Debug> List<T> {
         });
         let r = pre_aux_next.compare_exchange(d, n, Ordering::AcqRel, Ordering::Acquire);
         if r.is_err() {
+            release(c.reclaim, n);
             return Some(false);
         }
         release(c.reclaim, d);
@@ -350,6 +364,7 @@ mod tests {
 
         let mut reclaim = ReclaimCnt::new();
         let mut cursor = Cursor::empty(&mut reclaim);
+        debug_print_list(&list);
 
         list.first(&mut cursor);
 
@@ -357,6 +372,8 @@ mod tests {
         list.insert(&mut cursor, 84);
 
         cursor.update(list.last as *mut Cell<u32>);
+
+        debug_print_list(&list);
 
         let mut r = list.try_delete(&mut cursor);
         assert_eq!(r, Some(true));
@@ -369,29 +386,34 @@ mod tests {
         r = list.try_delete(&mut cursor);
         assert_eq!(r, Some(false));
         assert_eq!(cursor.reclaim.val(), 0);
-
+        
         assert!(list.next(&mut cursor).is_some());
-
+        
         drop(cursor);
         assert_eq!(reclaim.val(), 2);
+        debug_print_list(&list);
         let mut reclaim = ReclaimCnt::new();
         let mut cursor = Cursor::empty(&mut reclaim);
         list.first(&mut cursor);
-
+        //
         r = list.try_delete(&mut cursor);
         assert_eq!(r, Some(true));
+        assert_eq!(cursor.reclaim.val(), 0);
         r = list.try_delete(&mut cursor);
         assert_eq!(r, Some(false));
+        assert_eq!(cursor.reclaim.val(), 0);
         
         assert!(list.next(&mut cursor).is_some());
+        assert_eq!(cursor.reclaim.val(), 1);
         r = list.try_delete(&mut cursor);
         
         // last position
         assert_eq!(r, None);
         assert!(list.next(&mut cursor).is_none());
-        assert_eq!(cursor.reclaim.val(), 0);
+        assert_eq!(cursor.reclaim.val(), 1);
+        // assert_eq!(cursor.reclaim.val(), 0);
         drop(cursor);
-        assert_eq!(reclaim.val(), 1);
+        assert_eq!(reclaim.val(), 2);
 
     }
 
