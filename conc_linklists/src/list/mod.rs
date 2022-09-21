@@ -591,6 +591,7 @@ mod tests {
         }
 
         for _ in 0..NUM_THREADS {
+
             let list_copy = Arc::clone(&list);
             let jh = thread::spawn(move || {
                 let mut cnt = 0;
