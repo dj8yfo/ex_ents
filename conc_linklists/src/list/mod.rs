@@ -165,7 +165,7 @@ impl<T: Debug> List<T> {
         mut s: *mut Cell<T>, // p's next
         n: *mut Cell<T>,     // aux after target
     ) -> Option<bool> {
-        loop {
+        let r =loop {
             let p_next = unsafe { (*p).next().unwrap() };
 
             debug_assert!({
@@ -186,13 +186,13 @@ impl<T: Debug> List<T> {
                 s = safe_read(p_next) as *mut Cell<T>;
             }
             if List::delete_break_cond(r.is_ok(), p, n) {
-                break;
+                break r.is_ok();
             }
-        }
+        };
         release(c.reclaim, p);
         release(c.reclaim, s);
         release(c.reclaim, n);
-        Some(true)
+        Some(r)
     }
     fn delete_break_cond(result: bool, p: *mut Cell<T>, n: *mut Cell<T>) -> bool {
         let back_not_null = !unsafe {
@@ -627,6 +627,6 @@ mod tests {
         while list.next(&mut cursor).is_some() {
             count += 1;
         }
-        assert_eq!(count, (ITER-deleted_total)*NUM_THREADS);
+        assert_eq!(count, ITER*NUM_THREADS - deleted_total);
     }
 }
