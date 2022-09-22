@@ -50,9 +50,7 @@ impl<T: Debug> List<T> {
 }
 #[cfg(test)]
 mod tests {
-    // use std::{sync::{atomic::Ordering, Arc}, thread};
-
-    // use crate::cell::{Cell, ReclaimCnt};
+    use std::sync::Arc;
 
     use super:: List;
 
@@ -60,9 +58,57 @@ mod tests {
     fn test_new() {
         let list: List<u32> = List::new();
 
-
         let cursor = list.first();
+
+        assert_eq!(
+            Arc::as_ptr(cursor.target.as_ref().unwrap()),
+            Arc::as_ptr(&list.last)
+        );
 
         drop(cursor);
     }
+
+    #[allow(clippy::clone_on_copy)]
+    #[test]
+    fn test_try_insert() {
+        let list: List<u32> = List::new();
+
+
+        let mut cursor = list.first();
+
+        assert!(cursor.try_insert(42).is_ok());
+
+        assert!(cursor.try_insert(42).is_err());
+
+        cursor.update();
+
+        assert!(cursor.try_insert(84).is_ok());
+        drop(cursor);
+
+        let f_aux = (*list.first).next_dup().unwrap();
+        let f_val = (*f_aux).next_dup().unwrap();
+
+        assert_eq!((*f_val).val(), Some(&84));
+
+        let s_aux = (*f_val).next_dup().unwrap();
+        let s_val = (*s_aux).next_dup().unwrap();
+
+        assert_eq!((*s_val).val(), Some(&42));
+
+    }
+    const ITER: usize = 1000;
+
+    #[test]
+    fn test_next() {
+        let list: List<u32> = List::new();
+        let mut cursor = list.first();
+
+        for _ in 0..ITER {
+
+            assert!(cursor.try_insert(42).is_ok());
+            cursor.update();
+        }
+
+    }
+
 }

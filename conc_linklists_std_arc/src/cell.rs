@@ -23,6 +23,7 @@ pub enum Cell<T: Debug> {
 
 use std::fmt::Debug;
 
+
 impl<T:Debug> Drop for Cell<T> {
     fn drop(&mut self) {
         debug_assert!({
@@ -37,6 +38,18 @@ impl<T: Debug> Cell<T> {
         let next = next.conserve();
         use self::Cell::*;
         Arc::new(Aux {
+            links: Links {
+                next: AtomicPtr::new(next),
+                back_link: AtomicPtr::default(),
+            },
+        })
+    }
+
+    pub fn new_data(data: T, next: Arc<Cell<T>>) -> Arc<Cell<T>> {
+        let next = next.conserve();
+        use self::Cell::*;
+        Arc::new(Data {
+            data,
             links: Links {
                 next: AtomicPtr::new(next),
                 back_link: AtomicPtr::default(),
@@ -80,14 +93,25 @@ impl<T: Debug> Cell<T> {
         }
     }
 
+    pub fn val(&self) -> Option<&T> {
+        use self::Cell::*;
+        use self::Dummy::*;
+        match self {
+            Data { data , .. }  => {
+                Some(data)
+            }
+            Dummy(Last) | Aux {..} | Dummy(First(..))=> None,
+        }
+    }
+
+
     pub fn conserve(self: Arc<Self>) -> *mut Self {
         Arc::into_raw(self) as *mut Self
     }
 
     fn defrost(this: *mut Self) -> ManuallyDrop<Arc<Self>> {
-        ManuallyDrop::new(unsafe {Arc::from_raw(this) })
+        ManuallyDrop::new(unsafe { Arc::from_raw(this) })
     }
-
 
     pub fn next_dup(&self) -> Option<Arc<Cell<T>>> {
         use self::Cell::*;
@@ -96,7 +120,7 @@ impl<T: Debug> Cell<T> {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
                 let ptr = links.next.load(Ordering::Acquire);
                 if ptr.is_null() {
-                    return None
+                    return None;
                 }
                 let tmp = Cell::defrost(ptr);
                 let res = Arc::clone(&*tmp);
@@ -114,7 +138,7 @@ impl<T: Debug> Cell<T> {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
                 let ptr = links.next.load(Ordering::Acquire);
                 if ptr.is_null() {
-                    return None
+                    return None;
                 }
                 let tmp = Cell::defrost(ptr);
 
@@ -124,8 +148,11 @@ impl<T: Debug> Cell<T> {
         }
     }
 
-
-    pub fn compare_and_exchange(&self, p: Arc<Cell<T>>, n: Arc<Cell<T>>) -> bool {
+    pub fn swap_in_next(
+        &self,
+        p: Arc<Cell<T>>,
+        n: Arc<Cell<T>>,
+    ) -> Result<Arc<Cell<T>>, String> {
         use self::Cell::*;
         use self::Dummy::*;
         match self {
@@ -133,25 +160,23 @@ impl<T: Debug> Cell<T> {
                 let p_ptr = Arc::as_ptr(&p) as *mut Cell<T>;
                 let n_ptr = Arc::as_ptr(&n) as *mut Cell<T>;
 
-                let res = links.next.compare_exchange(
-                    p_ptr,
-                    n_ptr,
-                    Ordering::AcqRel,
-                    Ordering::Acquire,
-                );
-                if res.is_ok() {
-                    drop(p);
-                    unsafe {ManuallyDrop::drop(&mut Cell::defrost(p_ptr)) };
-                    n.conserve();
-                    return true
-                }
-                false
+                let res = links
+                    .next
+                    .compare_exchange(p_ptr, n_ptr, Ordering::AcqRel, Ordering::Acquire)
+                    .map_err(|ptr| {
+                        format!(
+                            "[err compare_exchange] actual {:p}, expected {:p}",
+                            ptr, p_ptr
+                        )
+                    })?;
+
+                drop(p);
+                n.conserve();
+                Ok(ManuallyDrop::into_inner(Cell::defrost(p_ptr)))
             }
-            Dummy(Last) => false,
+            Dummy(Last) => Err("no next for last variant".into()),
         }
     }
-
-
 
     pub fn next_cmp(&self, target: &Arc<Cell<T>>) -> bool {
         use self::Cell::*;

@@ -3,13 +3,18 @@ use std::{fmt::Debug, sync::Arc};
 use crate::cell::Cell;
 
 pub struct Cursor<T: Debug> {
-    target: Option<Arc<Cell<T>>>,
-    pre_aux: Arc<Cell<T>>,
-    pre_cell: Arc<Cell<T>>,
+    pub(super) target: Option<Arc<Cell<T>>>,
+    pub(super) pre_aux: Arc<Cell<T>>,
+    pub(super) pre_cell: Arc<Cell<T>>,
 }
 
+type Result<T> = std::result::Result<T, Box< 
+    dyn std::error::Error + 'static + Send + Sync 
+    >
+>;
 
-impl<T:Debug> Cursor<T> {
+
+impl<T: Debug> Cursor<T> {
     pub fn new(pre_cell: Arc<Cell<T>>, pre_aux: Arc<Cell<T>>) -> Self {
         Self {
             target: None,
@@ -20,10 +25,10 @@ impl<T:Debug> Cursor<T> {
 
     pub fn update(&mut self) {
         match self.target {
-            None => {},
+            None => {}
             Some(ref target) => {
                 if self.pre_aux.next_cmp(target) {
-                    return
+                    return;
                 }
             }
         }
@@ -32,11 +37,14 @@ impl<T:Debug> Cursor<T> {
         let mut n = p.next_dup().unwrap();
 
         drop(self.target.take());
-        while !n.is_last() && !n.is_data_cell()  {
+        while !n.is_last() && !n.is_data_cell() {
 
-            let pre_cell_next = self.pre_cell.next_dup().unwrap();
-
-            pre_cell_next.compare_and_exchange(p, n.clone());
+            if let Err(msg) = self.pre_cell.swap_in_next(p, n.clone()) {
+                debug_assert!({
+                    println!("cursor.update {}", msg);
+                    true
+                })
+            }
 
             p = n.clone();
             n = n.next_dup().unwrap();
@@ -45,5 +53,16 @@ impl<T:Debug> Cursor<T> {
         self.target = Some(n);
     }
 
+    pub fn try_insert(&self, data: T) -> Result<()> {
+        if self.target.is_none() {
+            return Err("target is none; cursor needs updating".into());
+        }
+        let target_ref = self.target.as_ref().unwrap();
+        let aux = Cell::new_aux(target_ref.clone()); // +1 target
+        let data = Cell::new_data(data, aux);
 
+        let res = self.pre_aux.swap_in_next(target_ref.clone(), data)?;
+        drop(res); // -1 target
+        Ok(())
+    }
 }
