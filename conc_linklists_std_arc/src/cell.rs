@@ -107,6 +107,24 @@ impl<T: Debug> Cell<T> {
         }
     }
 
+    pub fn next(&self) -> Option<Arc<Cell<T>>> {
+        use self::Cell::*;
+        use self::Dummy::*;
+        match self {
+            Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
+                let ptr = links.next.load(Ordering::Acquire);
+                if ptr.is_null() {
+                    return None
+                }
+                let tmp = Cell::defrost(ptr);
+
+                Some(ManuallyDrop::into_inner(tmp))
+            }
+            Dummy(Last) => None,
+        }
+    }
+
+
     pub fn compare_and_exchange(&self, p: Arc<Cell<T>>, n: Arc<Cell<T>>) -> bool {
         use self::Cell::*;
         use self::Dummy::*;

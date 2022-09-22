@@ -11,6 +11,16 @@ pub struct List<T: Debug> {
     last: Arc<Cell<T>>,
 }
 
+impl<T: Debug> Drop for List<T> {
+    fn drop(&mut self) {
+        let mut cell_it = self.first.next().unwrap();
+        while let Some(cell) = cell_it.next() {
+            cell_it = cell;
+        }
+    }
+
+}
+
 impl<T: Debug> List<T> {
     #[allow(dead_code)]
     fn new() -> Self {
@@ -37,4 +47,22 @@ impl<T: Debug> List<T> {
     }
 
     
+}
+#[cfg(test)]
+mod tests {
+    // use std::{sync::{atomic::Ordering, Arc}, thread};
+
+    // use crate::cell::{Cell, ReclaimCnt};
+
+    use super:: List;
+
+    #[test]
+    fn test_new() {
+        let list: List<u32> = List::new();
+
+
+        let cursor = list.first();
+
+        drop(cursor);
+    }
 }
