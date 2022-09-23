@@ -1,5 +1,6 @@
 use std::mem::ManuallyDrop;
 use std::ptr::null_mut;
+use std::sync::Weak;
 use std::sync::atomic::Ordering;
 use std::sync::{atomic::AtomicPtr, Arc};
 
@@ -45,11 +46,15 @@ impl<T: Debug> Cell<T> {
         match self {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
                 let ptr = links.next.load(Ordering::Acquire);
-                if ptr.is_null() {
-                    return;
-                }
-                let tmp = Cell::defrost(ptr);
-                ManuallyDrop::into_inner(tmp);
+                if !ptr.is_null() {
+                    let tmp = Cell::defrost(ptr);
+                    ManuallyDrop::into_inner(tmp);
+                } 
+                let ptr = links.back_link.load(Ordering::Acquire);
+                if !ptr.is_null() {
+                    let tmp = Cell::defrost_weak(ptr);
+                    ManuallyDrop::into_inner(tmp);
+                } 
             }
             Dummy(Last) => {},
         }
@@ -124,6 +129,12 @@ impl<T: Debug> Cell<T> {
         }
     }
 
+    fn conserve_weak(this: Weak<Self>) -> *mut Self {
+        Weak::into_raw(this) as *mut Self
+    }
+    fn defrost_weak(this: *mut Self) -> ManuallyDrop<Weak<Self>> {
+        ManuallyDrop::new(unsafe {Weak::from_raw(this)})
+    }
 
     pub fn conserve(self: Arc<Self>) -> *mut Self {
         Arc::into_raw(self) as *mut Self
@@ -167,6 +178,39 @@ impl<T: Debug> Cell<T> {
             Dummy(Last) => None,
         }
     }
+    pub fn store_backlink(&self, backlink: Weak<Self>) {
+        use self::Cell::*;
+        use self::Dummy::*;
+        match self {
+            Data { ref links, .. }    => {
+                let new = Cell::conserve_weak(backlink);
+                let prev = links.back_link.swap(new, Ordering::AcqRel);
+                if prev.is_null() {
+                    return;
+                }
+                let _dropped = ManuallyDrop::into_inner(Cell::defrost_weak(prev)) ;
+            }
+            Dummy(Last) |  Dummy(First(..)) | Aux { .. } => {},
+        }
+
+    }
+
+    pub fn backlink(&self) -> Option<Arc<Self>> {
+        use self::Cell::*;
+        use self::Dummy::*;
+        match self {
+            Data { ref links, .. }    => {
+                let prev = links.back_link.load(Ordering::Acquire);
+                if prev.is_null() {
+                    return None;
+                }
+                Cell::defrost_weak(prev).upgrade()
+            }
+            Dummy(Last) |  Dummy(First(..)) | Aux { .. } => None,
+        }
+
+    }
+
 
     pub fn swap_in_next(
         &self,

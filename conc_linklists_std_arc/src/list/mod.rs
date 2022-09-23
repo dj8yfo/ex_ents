@@ -152,5 +152,29 @@ mod tests {
 
     }
 
+    #[test]
+    fn test_set_backlink() {
+
+        let list: List<u32> = List::new();
+
+        let mut cursor = list.first().unwrap();
+
+        cursor.try_insert(42).unwrap();
+        cursor.update().unwrap();
+        cursor.target.as_ref().unwrap().store_backlink(
+            Arc::downgrade(&list.first.clone()) 
+        );
+
+        let backlink = cursor.target.as_ref().unwrap().backlink();
+
+        assert_eq!(
+            Arc::as_ptr(&backlink.unwrap()),
+            Arc::as_ptr(&list.first)
+        );
+
+        drop(cursor);
+    }
+
+
 
 }

@@ -48,6 +48,7 @@ impl<T: Debug> Cursor<T> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn next(&mut self) -> Result<bool> {
         let target = match self.target {
             None => return Err(anyhow!("cursor in invalid state: target is None")),
@@ -66,6 +67,7 @@ impl<T: Debug> Cursor<T> {
         Ok(true)
     }
 
+    #[allow(dead_code)]
     pub fn try_insert(&self, data: T) -> Result<()> {
         let target = match self.target {
             None => return Err(anyhow!("target is none; cursor needs updating")),
@@ -77,7 +79,7 @@ impl<T: Debug> Cursor<T> {
         match self
             .pre_aux
             .swap_in_next(target.clone(), data.clone())
-            .with_context(|| format!("err on try_insert {:?}", data))
+            .with_context(|| format!("err on try_insert {:?}; cursor needs update", data))
         {
             Ok(res) => {
                 drop(res);
@@ -90,10 +92,32 @@ impl<T: Debug> Cursor<T> {
             }
         }
     }
+    pub fn try_delete(&self) -> Result<()> {
+        let target = match self.target {
+            None => return Err(anyhow!("target is none; cursor needs updating")),
+            Some(ref _target) => _target,
+        };
+        if target.is_last() {
+            return Err(anyhow!("target is last; no possibility to delete"));
+        }
+        let d = target.clone();
+        let n = target.next_dup().ok_or_else(|| anyhow!("unexpected None in next"))?;
+
+        self
+            .pre_aux
+            .swap_in_next(d, n)
+            .with_context(|| "err on try_delete ; cursor needs update")?;
+
+        let back_link = Arc::downgrade(&self.pre_cell);
+        // HACK: deferred: self.target.take();
+        // HACK: deferred: self.target.take().drop_links();
+        Ok(())
+    }
 }
 
 impl<T: Debug + Copy> Cursor<T> {
 
+    #[allow(dead_code)]
     pub fn insert(&mut self, data: T) -> Result<()> {
         while self.try_insert(data).is_err() {
             self.update()?;
