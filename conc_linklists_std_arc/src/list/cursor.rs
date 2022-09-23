@@ -33,7 +33,7 @@ impl<T: Debug> Cursor<T> {
 
         drop(self.target.take());
         while !n.is_last() && !n.is_data_cell() {
-            if let Err(err) = self.pre_cell.swap_in_next(p, n.clone()) {
+            if let Err(err) = self.pre_cell.swap_in_next(p, Some(n.clone())) {
                 debug_assert!({
                     println!("cursor.update {:?}", err);
                     true
@@ -78,7 +78,7 @@ impl<T: Debug> Cursor<T> {
 
         match self
             .pre_aux
-            .swap_in_next(target.clone(), data.clone())
+            .swap_in_next(target.clone(), Some(data.clone()))
             .with_context(|| format!("err on try_insert {:?}; cursor needs update", data))
         {
             Ok(res) => {
@@ -105,10 +105,16 @@ impl<T: Debug> Cursor<T> {
 
         self
             .pre_aux
-            .swap_in_next(d, n)
+            .swap_in_next(d, Some(n))
             .with_context(|| "err on try_delete ; cursor needs update")?;
 
-        let back_link = Arc::downgrade(&self.pre_cell);
+        target.store_backlink(self.pre_cell.clone());
+        let mut p = self.pre_cell.clone();
+        while let Some(q) = p.backlink_dup() {
+            p = q;
+        }
+        // println!("{:?}", n);
+
         // HACK: deferred: self.target.take();
         // HACK: deferred: self.target.take().drop_links();
         Ok(())

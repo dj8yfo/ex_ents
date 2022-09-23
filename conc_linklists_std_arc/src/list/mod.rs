@@ -15,10 +15,7 @@ pub struct List<T: Debug> {
 
 impl<T: Debug> Drop for List<T> {
     fn drop(&mut self) {
-        let mut cell_it = self.first.next().unwrap();
-        while let Some(cell) = cell_it.next() {
-            cell_it = cell;
-        }
+        self.first.clone().delete_chain();
     }
 
 }
@@ -162,10 +159,10 @@ mod tests {
         cursor.try_insert(42).unwrap();
         cursor.update().unwrap();
         cursor.target.as_ref().unwrap().store_backlink(
-            Arc::downgrade(&list.first.clone()) 
+            list.first.clone() 
         );
 
-        let backlink = cursor.target.as_ref().unwrap().backlink();
+        let backlink = cursor.target.as_ref().unwrap().backlink_dup();
 
         assert_eq!(
             Arc::as_ptr(&backlink.unwrap()),

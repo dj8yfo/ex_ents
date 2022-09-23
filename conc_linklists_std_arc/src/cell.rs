@@ -1,5 +1,5 @@
 use std::mem::ManuallyDrop;
-use std::ptr::null_mut;
+use std::ptr::{self};
 use std::sync::Weak;
 use std::sync::atomic::Ordering;
 use std::sync::{atomic::AtomicPtr, Arc};
@@ -38,6 +38,18 @@ impl<T:Debug> Drop for Cell<T> {
 }
 
 impl<T: Debug> Cell<T> {
+
+    pub fn delete_chain(self: Arc<Self>) {
+        let mut a = self;
+        let mut b = a.next_dup();
+        a.drop_links();
+        while let Some(_b) = b {
+            b = _b.next_dup();
+            a = _b;
+            a.drop_links();
+        }
+    }
+
     pub fn drop_links(&self) {
 
         use self::Cell::*;
@@ -45,14 +57,14 @@ impl<T: Debug> Cell<T> {
 
         match self {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
-                let ptr = links.next.load(Ordering::Acquire);
+                let ptr = links.next.swap(ptr::null_mut(), Ordering::AcqRel);
                 if !ptr.is_null() {
                     let tmp = Cell::defrost(ptr);
                     ManuallyDrop::into_inner(tmp);
                 } 
-                let ptr = links.back_link.load(Ordering::Acquire);
+                let ptr = links.back_link.swap(ptr::null_mut(), Ordering::AcqRel);
                 if !ptr.is_null() {
-                    let tmp = Cell::defrost_weak(ptr);
+                    let tmp = Cell::defrost(ptr);
                     ManuallyDrop::into_inner(tmp);
                 } 
             }
@@ -129,10 +141,10 @@ impl<T: Debug> Cell<T> {
         }
     }
 
-    fn conserve_weak(this: Weak<Self>) -> *mut Self {
+    fn _conserve_weak(this: Weak<Self>) -> *mut Self {
         Weak::into_raw(this) as *mut Self
     }
-    fn defrost_weak(this: *mut Self) -> ManuallyDrop<Weak<Self>> {
+    fn _defrost_weak(this: *mut Self) -> ManuallyDrop<Weak<Self>> {
         ManuallyDrop::new(unsafe {Weak::from_raw(this)})
     }
 
@@ -178,24 +190,24 @@ impl<T: Debug> Cell<T> {
             Dummy(Last) => None,
         }
     }
-    pub fn store_backlink(&self, backlink: Weak<Self>) {
+    pub fn store_backlink(&self, backlink: Arc<Self>) {
         use self::Cell::*;
         use self::Dummy::*;
         match self {
             Data { ref links, .. }    => {
-                let new = Cell::conserve_weak(backlink);
+                let new = backlink.conserve();
                 let prev = links.back_link.swap(new, Ordering::AcqRel);
                 if prev.is_null() {
                     return;
                 }
-                let _dropped = ManuallyDrop::into_inner(Cell::defrost_weak(prev)) ;
+                let _dropped = ManuallyDrop::into_inner(Cell::defrost(prev)) ;
             }
             Dummy(Last) |  Dummy(First(..)) | Aux { .. } => {},
         }
 
     }
 
-    pub fn backlink(&self) -> Option<Arc<Self>> {
+    pub fn backlink_dup(&self) -> Option<Arc<Self>> {
         use self::Cell::*;
         use self::Dummy::*;
         match self {
@@ -204,7 +216,9 @@ impl<T: Debug> Cell<T> {
                 if prev.is_null() {
                     return None;
                 }
-                Cell::defrost_weak(prev).upgrade()
+
+                let tmp = Cell::defrost(prev);
+                Some(Arc::clone(&*tmp))
             }
             Dummy(Last) |  Dummy(First(..)) | Aux { .. } => None,
         }
@@ -215,14 +229,18 @@ impl<T: Debug> Cell<T> {
     pub fn swap_in_next(
         &self,
         p: Arc<Cell<T>>,
-        n: Arc<Cell<T>>,
+        n: Option<Arc<Cell<T>>>,
     ) -> Result<Arc<Cell<T>>> {
         use self::Cell::*;
         use self::Dummy::*;
         match self {
             Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
                 let p_ptr = Arc::as_ptr(&p) as *mut Cell<T>;
-                let n_ptr = Arc::as_ptr(&n) as *mut Cell<T>;
+                let n_ptr = match n {
+                    None => ptr::null_mut(),
+                    Some(ref _n) => Arc::as_ptr(_n) as *mut Cell<T>,
+
+                };
 
                 links
                     .next
@@ -235,7 +253,10 @@ impl<T: Debug> Cell<T> {
                     })?;
 
                 drop(p);
-                n.conserve();
+                match n {
+                    None => ptr::null_mut(),
+                    Some(_n) => _n.conserve(),
+                };
                 Ok(ManuallyDrop::into_inner(Cell::defrost(p_ptr)))
             }
             Dummy(Last) => Err(anyhow!("no next for last variant")),
