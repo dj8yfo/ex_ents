@@ -6,6 +6,7 @@ use std::fmt::Debug;
 
 mod cursor;
 
+#[allow(unused)]
 pub struct List<T: Debug> {
     first: Arc<Cell<T>>,
     last: Arc<Cell<T>>,

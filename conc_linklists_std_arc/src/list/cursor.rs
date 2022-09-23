@@ -1,18 +1,13 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::cell::Cell;
+use anyhow::{Result, anyhow, Context};
 
 pub struct Cursor<T: Debug> {
     pub(super) target: Option<Arc<Cell<T>>>,
     pub(super) pre_aux: Arc<Cell<T>>,
     pub(super) pre_cell: Arc<Cell<T>>,
 }
-
-type Result<T> = std::result::Result<T, Box< 
-    dyn std::error::Error + 'static + Send + Sync 
-    >
->;
-
 
 impl<T: Debug> Cursor<T> {
     pub fn new(pre_cell: Arc<Cell<T>>, pre_aux: Arc<Cell<T>>) -> Self {
@@ -55,13 +50,17 @@ impl<T: Debug> Cursor<T> {
 
     pub fn try_insert(&self, data: T) -> Result<()> {
         if self.target.is_none() {
-            return Err("target is none; cursor needs updating".into());
+            return Err(anyhow!("target is none; cursor needs updating"));
         }
         let target_ref = self.target.as_ref().unwrap();
         let aux = Cell::new_aux(target_ref.clone()); // +1 target
+        let err_ctx = format!("err on try_insert {:?}", data);
         let data = Cell::new_data(data, aux);
 
-        let res = self.pre_aux.swap_in_next(target_ref.clone(), data)?;
+        let res = self.pre_aux.swap_in_next(target_ref.clone(), data).with_context(||
+            {
+                err_ctx
+            })?;
         drop(res); // -1 target
         Ok(())
     }

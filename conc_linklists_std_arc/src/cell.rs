@@ -2,6 +2,8 @@ use std::mem::ManuallyDrop;
 use std::sync::atomic::Ordering;
 use std::sync::{atomic::AtomicPtr, Arc};
 
+use anyhow::{Result, anyhow};
+
 #[derive(Debug)]
 pub struct Links<T: Debug> {
     next: AtomicPtr<Cell<T>>,
@@ -152,7 +154,7 @@ impl<T: Debug> Cell<T> {
         &self,
         p: Arc<Cell<T>>,
         n: Arc<Cell<T>>,
-    ) -> Result<Arc<Cell<T>>, String> {
+    ) -> Result<Arc<Cell<T>>> {
         use self::Cell::*;
         use self::Dummy::*;
         match self {
@@ -160,11 +162,11 @@ impl<T: Debug> Cell<T> {
                 let p_ptr = Arc::as_ptr(&p) as *mut Cell<T>;
                 let n_ptr = Arc::as_ptr(&n) as *mut Cell<T>;
 
-                let res = links
+                links
                     .next
                     .compare_exchange(p_ptr, n_ptr, Ordering::AcqRel, Ordering::Acquire)
                     .map_err(|ptr| {
-                        format!(
+                        anyhow!(
                             "[err compare_exchange] actual {:p}, expected {:p}",
                             ptr, p_ptr
                         )
@@ -174,7 +176,7 @@ impl<T: Debug> Cell<T> {
                 n.conserve();
                 Ok(ManuallyDrop::into_inner(Cell::defrost(p_ptr)))
             }
-            Dummy(Last) => Err("no next for last variant".into()),
+            Dummy(Last) => Err(anyhow!("no next for last variant")),
         }
     }
 
