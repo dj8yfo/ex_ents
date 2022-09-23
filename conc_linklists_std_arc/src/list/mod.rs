@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use crate::cell::{Cell};
+use crate::cell::Cell;
 
 use std::fmt::Debug;
+use anyhow::Result;
 
 mod cursor;
 
@@ -37,14 +38,14 @@ impl<T: Debug> List<T> {
     }
 
     #[allow(dead_code)]
-    fn first(&self) -> cursor::Cursor<T>{
+    fn first(&self) -> Result<cursor::Cursor<T>>{
         let pre_cell = self.first.clone();
         let pre_aux = self.first.next_dup().unwrap();
     
         let mut c = cursor::Cursor::new(pre_cell, pre_aux);
     
-        c.update();
-        c
+        c.update()?;
+        Ok(c)
     }
 
     
@@ -59,7 +60,7 @@ mod tests {
     fn test_new() {
         let list: List<u32> = List::new();
 
-        let cursor = list.first();
+        let cursor = list.first().unwrap();
 
         assert_eq!(
             Arc::as_ptr(cursor.target.as_ref().unwrap()),
@@ -75,15 +76,15 @@ mod tests {
         let list: List<u32> = List::new();
 
 
-        let mut cursor = list.first();
+        let mut cursor = list.first().unwrap();
 
-        assert!(cursor.try_insert(42).is_ok());
+        cursor.try_insert(42).unwrap();
 
         assert!(cursor.try_insert(42).is_err());
 
-        cursor.update();
+        cursor.update().unwrap();
 
-        assert!(cursor.try_insert(84).is_ok());
+        cursor.try_insert(84).unwrap();
         drop(cursor);
 
         let f_aux = (*list.first).next_dup().unwrap();
@@ -102,12 +103,12 @@ mod tests {
     #[test]
     fn test_next() {
         let list: List<u32> = List::new();
-        let mut cursor = list.first();
+        let mut cursor = list.first().unwrap();
 
         for _ in 0..ITER {
 
-            assert!(cursor.try_insert(42).is_ok());
-            cursor.update();
+            cursor.try_insert(42).unwrap();
+            cursor.update().unwrap();
         }
 
     }
