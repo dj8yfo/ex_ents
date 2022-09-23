@@ -84,3 +84,13 @@ impl<T: Debug> Cursor<T> {
         Ok(())
     }
 }
+
+impl<T: Debug + Copy> Cursor<T> {
+
+    pub fn insert(&mut self, data: T) -> Result<()> {
+        while self.try_insert(data).is_err() {
+            self.update()?;
+        }
+        Ok(())
+    }
+}

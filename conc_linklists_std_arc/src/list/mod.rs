@@ -52,9 +52,10 @@ impl<T: Debug> List<T> {
 }
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{sync::Arc, thread};
 
     use super:: List;
+    use anyhow::Result;
 
     #[test]
     fn test_new() {
@@ -110,7 +111,46 @@ mod tests {
             cursor.try_insert(42).unwrap();
             cursor.update().unwrap();
         }
+        let mut count = 0;
+        while cursor.next().unwrap() {
+            count += 1;
+        }
+        assert_eq!(count, ITER);
 
     }
+
+    #[test]
+    fn test_next_complex_parallel() {
+        let list: Arc<List<u32>> = Arc::new(List::new());
+
+        let mut vec_jh = vec![];
+        const NUM_THREADS: usize = 1000;
+
+        for _ in 0..NUM_THREADS {
+            let list_copy = Arc::clone(&list);
+            let jh = thread::spawn(move || -> Result<()> {
+                let mut cursor = list_copy.first()?;
+
+                for _ in 0..ITER {
+                    cursor.insert(42)?;
+                }
+                Ok(())
+            });
+            vec_jh.push(jh);
+        }
+
+        for jh in vec_jh {
+            jh.join().unwrap().unwrap();
+        }
+
+        let mut cursor = list.first().unwrap();
+        let mut count = 0;
+        while cursor.next().unwrap() {
+            count += 1;
+        }
+        assert_eq!(count, ITER*NUM_THREADS);
+
+    }
+
 
 }
