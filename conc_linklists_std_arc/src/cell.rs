@@ -1,4 +1,5 @@
 use std::mem::ManuallyDrop;
+use std::ptr::null_mut;
 use std::sync::atomic::Ordering;
 use std::sync::{atomic::AtomicPtr, Arc};
 
@@ -36,6 +37,23 @@ impl<T:Debug> Drop for Cell<T> {
 }
 
 impl<T: Debug> Cell<T> {
+    pub fn drop_links(&self) {
+
+        use self::Cell::*;
+        use self::Dummy::*;
+
+        match self {
+            Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
+                let ptr = links.next.load(Ordering::Acquire);
+                if ptr.is_null() {
+                    return;
+                }
+                let tmp = Cell::defrost(ptr);
+                ManuallyDrop::into_inner(tmp);
+            }
+            Dummy(Last) => {},
+        }
+    }
     pub fn new_aux(next: Arc<Cell<T>>) -> Arc<Cell<T>> {
         let next = next.conserve();
         use self::Cell::*;

@@ -70,18 +70,25 @@ impl<T: Debug> Cursor<T> {
         let target = match self.target {
             None => return Err(anyhow!("target is none; cursor needs updating")),
             Some(ref _target) => _target,
-
         };
         let aux = Cell::new_aux(target.clone()); // +1 target
-        let err_ctx = format!("err on try_insert {:?}", data);
-        let data = Cell::new_data(data, aux);
+        let data = Cell::new_data(data, aux.clone());
 
-        let res = self
+        match self
             .pre_aux
-            .swap_in_next(target.clone(), data)
-            .with_context(|| err_ctx)?;
-        drop(res); // -1 target
-        Ok(())
+            .swap_in_next(target.clone(), data.clone())
+            .with_context(|| format!("err on try_insert {:?}", data))
+        {
+            Ok(res) => {
+                drop(res);
+                Ok(())
+            }
+            Err(err) => {
+                aux.drop_links();
+                data.drop_links();
+                Err(err)
+            }
+        }
     }
 }
 

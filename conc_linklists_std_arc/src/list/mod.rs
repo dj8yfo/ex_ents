@@ -134,6 +134,8 @@ mod tests {
                 for _ in 0..ITER {
                     cursor.insert(42)?;
                 }
+                drop(cursor);
+                drop(list_copy);
                 Ok(())
             });
             vec_jh.push(jh);
@@ -148,6 +150,8 @@ mod tests {
         while cursor.next().unwrap() {
             count += 1;
         }
+        drop(cursor);
+        drop(list);
         assert_eq!(count, ITER*NUM_THREADS);
 
     }
