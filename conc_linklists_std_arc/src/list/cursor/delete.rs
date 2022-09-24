@@ -27,7 +27,7 @@ impl<T: Debug> Cursor<T> {
             .swap_in_next(d.clone(), Some(n.clone()))
             .with_context(|| "err on try_delete:drop_target ; cursor needs update")?;
 
-        target.store_backlink(Some(self.pre_cell.clone()));
+        target.store_backlink(Some(Arc::downgrade(&self.pre_cell.clone()) ));
         self.target.take();
 
         Ok((d,  n))

@@ -13,11 +13,11 @@ pub struct List<T: Debug> {
     last: Arc<Cell<T>>,
 }
 
-impl<T: Debug> Drop for List<T> {
-    fn drop(&mut self) {
-        self.first.clone().delete_chain();
-    }
-}
+// impl<T: Debug> Drop for List<T> {
+//     fn drop(&mut self) {
+//         self.first.clone().delete_chain();
+//     }
+// }
 
 impl<T: Debug> List<T> {
     #[allow(dead_code)]
@@ -95,7 +95,7 @@ mod tests {
         assert_eq!((*s_val).val(), Some(&42));
 
     }
-    const ITER: usize = 1000;
+    const ITER: usize = 10;
 
     #[test]
     fn test_next() {
@@ -120,7 +120,7 @@ mod tests {
         let list: Arc<List<u32>> = Arc::new(List::new());
 
         let mut vec_jh = vec![];
-        const NUM_THREADS: usize = 1000;
+        const NUM_THREADS: usize = 100;
 
         for _ in 0..NUM_THREADS {
             let list_copy = Arc::clone(&list);
@@ -158,7 +158,7 @@ mod tests {
         cursor.try_insert(42).unwrap();
         cursor.update().unwrap();
         cursor.target.as_ref().unwrap().store_backlink(
-            Some(list.first.clone()) 
+            Some(Arc::downgrade(&list.first.clone()))
         );
 
         let backlink = cursor.target.as_ref().unwrap().backlink_dup();
@@ -170,69 +170,5 @@ mod tests {
 
         drop(cursor);
     }
-
-    #[test]
-    fn test_delete_chain_back() {
-
-        let list: List<u32> = List::new();
-
-        let mut cursor = list.first().unwrap();
-
-        for i in 1..4 {
-            cursor.try_insert(i).unwrap();
-            cursor.update().unwrap();
-        }
-        cursor.target.as_ref().unwrap().store_backlink(
-            Some(list.first.clone()) 
-        );
-        let mut prev = cursor.target.as_ref().unwrap().clone();
-
-        for _ in 1..3 {
-            cursor.next().unwrap();
-            cursor.target.as_ref().unwrap().store_backlink(
-                Some(prev.clone()) 
-            );
-            prev = cursor.target.as_ref().unwrap().clone();
-        }
-        drop(cursor);
-
-
-        let mut cursor = list.first().unwrap();
-        
-        let backlink = cursor.target.as_ref().unwrap().backlink_dup();
-
-        assert_eq!(
-            Arc::as_ptr(&backlink.unwrap()),
-            Arc::as_ptr(&list.first)
-        );
-
-        for i in (2..=3).rev() {
-            cursor.next().unwrap();
-            let backlink = cursor.target.as_ref().unwrap().backlink_dup().unwrap();
-            
-            assert_eq!(&i, backlink.val().unwrap());
-        }
-
-        cursor.target.as_ref().unwrap().delete_chain_back();
-
-        drop(cursor);
-
-        let mut cursor = list.first().unwrap();
-        
-        let backlink = cursor.target.as_ref().unwrap().backlink_dup();
-
-        assert!(backlink.is_none());
-
-        for _ in (2..=3).rev() {
-            cursor.next().unwrap();
-            let backlink = cursor.target.as_ref().unwrap().backlink_dup();
-            
-            assert!(backlink.is_none());
-        }
-
-
-
-    }
-
 
 }

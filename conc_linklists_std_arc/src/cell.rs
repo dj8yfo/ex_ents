@@ -27,20 +27,37 @@ pub enum Cell<T: Debug> {
 
 use std::fmt::Debug;
 
-pub struct AutoCell<T: Debug> {
-    data: T,
-    links: Links<T>,
-}
-
-
 impl<T:Debug> Drop for Cell<T> {
     fn drop(&mut self) {
         debug_assert!({
             println!("dropping {:?}", self);
             true
-        })
+        });
+        use self::Cell::*;
+        use self::Dummy::*;
+        match self {
+            Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
+                let ptr = links.next.load(Ordering::Acquire);
+                if ptr.is_null() {
+                    return;
+                }
+                let tmp = Cell::defrost(ptr);
+                ManuallyDrop::into_inner(tmp);
+                let ptr = links.back_link.load(Ordering::Acquire);
+                if ptr.is_null() {
+                    return;
+                }
+                let tmp = Cell::defrost(ptr);
+                ManuallyDrop::into_inner(tmp);
+            }
+            Dummy(Last) => {},
+        }
+
     }
 }
+
+
+
 
 impl<T: Debug> Cell<T> {
 
@@ -164,7 +181,7 @@ impl<T: Debug> Cell<T> {
             Dummy(Last) => None,
         }
     }
-    pub fn store_backlink(&self, backlink: Option<Arc<Self>>) {
+    pub fn store_backlink(&self, backlink: Option<Weak<Self>>) {
         use self::Cell::*;
         use self::Dummy::*;
         match self {
@@ -172,14 +189,14 @@ impl<T: Debug> Cell<T> {
 
                 let new = match backlink {
                     None => ptr::null_mut(),
-                    Some(_b) => _b.conserve(),
+                    Some(_b) => Cell::_conserve_weak(_b),
 
                 };
                 let prev = links.back_link.swap(new, Ordering::AcqRel);
                 if prev.is_null() {
                     return;
                 }
-                let _dropped = ManuallyDrop::into_inner(Cell::defrost(prev)) ;
+                let _dropped = ManuallyDrop::into_inner(Cell::_defrost_weak(prev)) ;
             }
             Dummy(Last) |  Dummy(First(..)) | Aux { .. } => {},
         }
@@ -196,8 +213,8 @@ impl<T: Debug> Cell<T> {
                     return None;
                 }
 
-                let tmp = Cell::defrost(prev);
-                Some(Arc::clone(&*tmp))
+                let tmp = Cell::_defrost_weak(prev);
+                tmp.upgrade()
             }
             Dummy(Last) |  Dummy(First(..)) | Aux { .. } => None,
         }
