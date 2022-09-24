@@ -50,8 +50,8 @@ impl<T: Debug> Cell<T> {
         }
     }
 
-    pub fn delete_chain_back(self: Arc<Self>) {
-        let mut a = self;
+    pub fn delete_chain_back(self: &Arc<Self>) {
+        let mut a = self.clone();
         let mut b = a.backlink_dup();
         a.store_backlink(None);
         while let Some(_b) = b {

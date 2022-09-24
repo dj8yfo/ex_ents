@@ -171,4 +171,68 @@ mod tests {
         drop(cursor);
     }
 
+    #[test]
+    fn test_delete_chain_back() {
+
+        let list: List<u32> = List::new();
+
+        let mut cursor = list.first().unwrap();
+
+        for i in 1..4 {
+            cursor.try_insert(i).unwrap();
+            cursor.update().unwrap();
+        }
+        cursor.target.as_ref().unwrap().store_backlink(
+            Some(list.first.clone()) 
+        );
+        let mut prev = cursor.target.as_ref().unwrap().clone();
+
+        for _ in 1..3 {
+            cursor.next().unwrap();
+            cursor.target.as_ref().unwrap().store_backlink(
+                Some(prev.clone()) 
+            );
+            prev = cursor.target.as_ref().unwrap().clone();
+        }
+        drop(cursor);
+
+
+        let mut cursor = list.first().unwrap();
+        
+        let backlink = cursor.target.as_ref().unwrap().backlink_dup();
+
+        assert_eq!(
+            Arc::as_ptr(&backlink.unwrap()),
+            Arc::as_ptr(&list.first)
+        );
+
+        for i in (2..=3).rev() {
+            cursor.next().unwrap();
+            let backlink = cursor.target.as_ref().unwrap().backlink_dup().unwrap();
+            
+            assert_eq!(&i, backlink.val().unwrap());
+        }
+
+        cursor.target.as_ref().unwrap().delete_chain_back();
+
+        drop(cursor);
+
+        let mut cursor = list.first().unwrap();
+        
+        let backlink = cursor.target.as_ref().unwrap().backlink_dup();
+
+        assert!(backlink.is_none());
+
+        for _ in (2..=3).rev() {
+            cursor.next().unwrap();
+            let backlink = cursor.target.as_ref().unwrap().backlink_dup();
+            
+            assert!(backlink.is_none());
+        }
+
+
+
+    }
+
+
 }
