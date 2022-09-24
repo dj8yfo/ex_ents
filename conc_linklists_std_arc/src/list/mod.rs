@@ -17,7 +17,6 @@ impl<T: Debug> Drop for List<T> {
     fn drop(&mut self) {
         self.first.clone().delete_chain();
     }
-
 }
 
 impl<T: Debug> List<T> {
@@ -159,7 +158,7 @@ mod tests {
         cursor.try_insert(42).unwrap();
         cursor.update().unwrap();
         cursor.target.as_ref().unwrap().store_backlink(
-            list.first.clone() 
+            Some(list.first.clone()) 
         );
 
         let backlink = cursor.target.as_ref().unwrap().backlink_dup();
@@ -171,7 +170,5 @@ mod tests {
 
         drop(cursor);
     }
-
-
 
 }

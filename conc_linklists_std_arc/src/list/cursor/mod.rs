@@ -3,6 +3,8 @@ use std::{fmt::Debug, sync::Arc};
 use crate::cell::Cell;
 use anyhow::{Result, anyhow, Context};
 
+pub mod delete;
+
 pub struct Cursor<T: Debug> {
     pub(super) target: Option<Arc<Cell<T>>>,
     pub(super) pre_aux: Arc<Cell<T>>,
@@ -67,7 +69,6 @@ impl<T: Debug> Cursor<T> {
         Ok(true)
     }
 
-    #[allow(dead_code)]
     pub fn try_insert(&self, data: T) -> Result<()> {
         let target = match self.target {
             None => return Err(anyhow!("target is none; cursor needs updating")),
@@ -91,33 +92,6 @@ impl<T: Debug> Cursor<T> {
                 Err(err)
             }
         }
-    }
-    pub fn try_delete(&self) -> Result<()> {
-        let target = match self.target {
-            None => return Err(anyhow!("target is none; cursor needs updating")),
-            Some(ref _target) => _target,
-        };
-        if target.is_last() {
-            return Err(anyhow!("target is last; no possibility to delete"));
-        }
-        let d = target.clone();
-        let n = target.next_dup().ok_or_else(|| anyhow!("unexpected None in next"))?;
-
-        self
-            .pre_aux
-            .swap_in_next(d, Some(n))
-            .with_context(|| "err on try_delete ; cursor needs update")?;
-
-        target.store_backlink(self.pre_cell.clone());
-        let mut p = self.pre_cell.clone();
-        while let Some(q) = p.backlink_dup() {
-            p = q;
-        }
-        // println!("{:?}", n);
-
-        // HACK: deferred: self.target.take();
-        // HACK: deferred: self.target.take().drop_links();
-        Ok(())
     }
 }
 

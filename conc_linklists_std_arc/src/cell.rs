@@ -50,27 +50,23 @@ impl<T: Debug> Cell<T> {
         }
     }
 
-    pub fn drop_links(&self) {
-
-        use self::Cell::*;
-        use self::Dummy::*;
-
-        match self {
-            Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
-                let ptr = links.next.swap(ptr::null_mut(), Ordering::AcqRel);
-                if !ptr.is_null() {
-                    let tmp = Cell::defrost(ptr);
-                    ManuallyDrop::into_inner(tmp);
-                } 
-                let ptr = links.back_link.swap(ptr::null_mut(), Ordering::AcqRel);
-                if !ptr.is_null() {
-                    let tmp = Cell::defrost(ptr);
-                    ManuallyDrop::into_inner(tmp);
-                } 
-            }
-            Dummy(Last) => {},
+    pub fn delete_chain_back(self: Arc<Self>) {
+        let mut a = self;
+        let mut b = a.backlink_dup();
+        a.store_backlink(None);
+        while let Some(_b) = b {
+            b = _b.backlink_dup();
+            a = _b;
+            a.store_backlink(None);
         }
     }
+
+
+    pub fn drop_links(&self) {
+        self.store_next(None);
+        self.store_backlink(None);
+    }
+
     pub fn new_aux(next: Arc<Cell<T>>) -> Arc<Cell<T>> {
         let next = next.conserve();
         use self::Cell::*;
@@ -173,29 +169,17 @@ impl<T: Debug> Cell<T> {
             Dummy(Last) => None,
         }
     }
-
-    pub fn next(&self) -> Option<Arc<Cell<T>>> {
-        use self::Cell::*;
-        use self::Dummy::*;
-        match self {
-            Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
-                let ptr = links.next.load(Ordering::Acquire);
-                if ptr.is_null() {
-                    return None;
-                }
-                let tmp = Cell::defrost(ptr);
-
-                Some(ManuallyDrop::into_inner(tmp))
-            }
-            Dummy(Last) => None,
-        }
-    }
-    pub fn store_backlink(&self, backlink: Arc<Self>) {
+    pub fn store_backlink(&self, backlink: Option<Arc<Self>>) {
         use self::Cell::*;
         use self::Dummy::*;
         match self {
             Data { ref links, .. }    => {
-                let new = backlink.conserve();
+
+                let new = match backlink {
+                    None => ptr::null_mut(),
+                    Some(_b) => _b.conserve(),
+
+                };
                 let prev = links.back_link.swap(new, Ordering::AcqRel);
                 if prev.is_null() {
                     return;
@@ -223,6 +207,27 @@ impl<T: Debug> Cell<T> {
             Dummy(Last) |  Dummy(First(..)) | Aux { .. } => None,
         }
 
+    }
+
+    pub fn store_next(&self, next: Option<Arc<Cell<T>>>) {
+        use self::Cell::*;
+        use self::Dummy::*;
+        match self {
+            Data { ref links, .. } | Aux { ref links } | Dummy(First(ref links)) => {
+
+                let new = match next {
+                    None => ptr::null_mut(),
+                    Some(_n) => _n.conserve(),
+
+                };
+                let prev = links.next.swap(new, Ordering::AcqRel);
+                if prev.is_null() {
+                    return;
+                }
+                let _dropped = ManuallyDrop::into_inner(Cell::defrost(prev)) ;
+            }
+            Dummy(Last) => {},
+        }
     }
 
 
