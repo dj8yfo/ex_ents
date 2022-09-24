@@ -50,17 +50,6 @@ impl<T: Debug> Cell<T> {
         }
     }
 
-    pub fn delete_chain_back(self: &Arc<Self>) {
-        let mut a = self.clone();
-        let mut b = a.backlink_dup();
-        a.store_backlink(None);
-        while let Some(_b) = b {
-            b = _b.backlink_dup();
-            a = _b;
-            a.store_backlink(None);
-        }
-    }
-
 
     pub fn drop_links(&self) {
         self.store_next(None);
@@ -125,6 +114,18 @@ impl<T: Debug> Cell<T> {
             Dummy(Last) => false,
         }
     }
+
+    pub fn is_normal_cell(&self) -> bool {
+        use self::Cell::*;
+        use self::Dummy::*;
+        match self {
+            Data { .. } => true,
+            Aux { .. } => false,
+            Dummy(First(..)) => true,
+            Dummy(Last) => true,
+        }
+    }
+
 
     pub fn val(&self) -> Option<&T> {
         use self::Cell::*;
