@@ -27,6 +27,11 @@ pub enum Cell<T: Debug> {
 
 use std::fmt::Debug;
 
+pub struct AutoCell<T: Debug> {
+    data: T,
+    links: Links<T>,
+}
+
 
 impl<T:Debug> Drop for Cell<T> {
     fn drop(&mut self) {
@@ -38,17 +43,6 @@ impl<T:Debug> Drop for Cell<T> {
 }
 
 impl<T: Debug> Cell<T> {
-
-    pub fn delete_chain(self: Arc<Self>) {
-        let mut a = self;
-        let mut b = a.next_dup();
-        a.drop_links();
-        while let Some(_b) = b {
-            b = _b.next_dup();
-            a = _b;
-            a.drop_links();
-        }
-    }
 
 
     pub fn drop_links(&self) {

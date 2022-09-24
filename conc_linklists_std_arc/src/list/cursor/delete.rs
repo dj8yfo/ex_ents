@@ -5,7 +5,7 @@ use crate::cell::Cell;
 use super::Cursor;
 use std::{fmt::Debug, sync::Arc};
 
-type _4Cells<T> = (Arc<Cell<T>>, Arc<Cell<T>>, Arc<Cell<T>>, Arc<Cell<T>>);
+type _3Cells<T> = (Arc<Cell<T>>, Arc<Cell<T>>, Arc<Cell<T>>);
 type _2Cells<T> = (Arc<Cell<T>>, Arc<Cell<T>>);
 impl<T: Debug> Cursor<T> {
 
@@ -33,17 +33,14 @@ impl<T: Debug> Cursor<T> {
         Ok((d,  n))
     }
 
-    fn calculate_delete_start(&self, target_dropped: Arc<Cell<T>>) -> Result<_4Cells<T>> {
+    fn calculate_delete_start(&self) -> Result<_2Cells<T>> {
 
-        let mut p_back_prev = target_dropped;
         let mut p = self.pre_cell.clone();
         while let Some(q) = p.backlink_dup() {
-            p_back_prev = p;
             p = q;
         }
         let s = p.next_dup().ok_or_else(|| anyhow!("unexpected None in next"))?;
-        let s_next = s.next_dup().ok_or_else(|| anyhow!("unexpected None in next"))?;
-        Ok((p_back_prev, p, s, s_next))
+        Ok((p, s))
     }
 
     fn n_is_last_aux(n: Arc<Cell<T>>) -> Result<bool> {
@@ -51,28 +48,35 @@ impl<T: Debug> Cursor<T> {
         Ok(n_next.is_normal_cell())
     }
 
-    fn advance_delete_end(mut n: Arc<Cell<T>>) -> Result<_2Cells<T>> {
+    fn advance_delete_end(mut n: Arc<Cell<T>>) -> Result<Arc<Cell<T>>> {
         let mut n_next = n.next_dup().ok_or_else(|| anyhow!("unexpected None in next"))?;
 
         while !n_next.is_normal_cell() {
             n = n_next;
             n_next = n.next_dup().ok_or_else(|| anyhow!("unexpected None in next"))?;
         }
-        Ok((n, n_next))
+        Ok(n)
     }
-
+    //
+    // fn compute_loop_result(res: bool, ) -> DeleteLoopState {
+    //     if res {
+    //
+    //     }
+    //
+    // }
     pub fn try_delete(&mut self) -> Result<()> {
         let (target_dropped, mut n) = self.drop_target()?;
 
-        let (p_back_prev, p, s, s_next) = self.calculate_delete_start(target_dropped.clone())?;
+        let (p, mut s) = self.calculate_delete_start()?;
 
 
-        n, n_next = Cursor::advance_delete_end(n)?;
+        n = Cursor::advance_delete_end(n)?;
         let loop_res = loop {
-            let res = s.swap_in_next(s_next.clone(), Some(n_next.clone()));
+            let res = p.swap_in_next(s.clone(), Some(n.clone()));
             if res.is_err(){
                 s = p.next_dup().ok_or_else(|| anyhow!("unexpected None in next"))?;
             }
+            break;
         };
 
 
@@ -83,13 +87,5 @@ impl<T: Debug> Cursor<T> {
 
         Ok(())
     }
-}
-
-struct DeleteState {
-    result : bool,
-    n_is_last_aux: bool,
-
-    
-
 }
 
