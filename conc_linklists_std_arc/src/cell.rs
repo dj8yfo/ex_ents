@@ -47,7 +47,7 @@ impl<T:Debug> Drop for Cell<T> {
                 if ptr.is_null() {
                     return;
                 }
-                let tmp = Cell::defrost(ptr);
+                let tmp = Cell::_defrost_weak(ptr);
                 ManuallyDrop::into_inner(tmp);
             }
             Dummy(Last) => {},

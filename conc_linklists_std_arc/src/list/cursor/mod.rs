@@ -11,6 +11,14 @@ pub struct Cursor<T: Debug> {
     pub(super) pre_cell: Arc<Cell<T>>,
 }
 
+#[derive(Debug)]
+pub struct NeedsUpdate;
+impl std::fmt::Display for NeedsUpdate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("NeedsUpdate")
+    }
+}
+
 impl<T: Debug> Cursor<T> {
     pub fn new(pre_cell: Arc<Cell<T>>, pre_aux: Arc<Cell<T>>) -> Self {
         Self {
@@ -71,16 +79,16 @@ impl<T: Debug> Cursor<T> {
 
     pub fn try_insert(&self, data: T) -> Result<()> {
         let target = match self.target {
-            None => return Err(anyhow!("target is none; cursor needs updating")),
+            None => return Err(anyhow!("target is none; cursor needs updating")).context(NeedsUpdate),
             Some(ref _target) => _target,
         };
         let aux = Cell::new_aux(target.clone()); // +1 target
-        let data = Cell::new_data(data, aux.clone());
+        let data = Cell::new_data(data, aux);
 
         self
             .pre_aux
-            .swap_in_next(target.clone(), Some(data.clone()))
-            .with_context(|| format!("err on try_insert {:?}; cursor needs update", data))?;
+            .swap_in_next(target.clone(), Some(data))
+            .context(NeedsUpdate)?;
         Ok(())
         
     }
@@ -95,4 +103,5 @@ impl<T: Debug + Copy> Cursor<T> {
         }
         Ok(())
     }
+
 }

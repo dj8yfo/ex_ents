@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::cell::Cell;
 
 use std::fmt::Debug;
-use anyhow::Result;
+use anyhow::{Result};
 
 mod cursor;
 
@@ -50,6 +50,8 @@ impl<T: Debug> List<T> {
 mod tests {
     use std::{sync::Arc, thread};
 
+    use crate::list::cursor;
+
     use super:: List;
     use anyhow::Result;
 
@@ -72,12 +74,16 @@ mod tests {
     fn test_try_insert() {
         let list: List<u32> = List::new();
 
-
         let mut cursor = list.first().unwrap();
 
         cursor.try_insert(42).unwrap();
 
         assert!(cursor.try_insert(42).is_err());
+        assert!(cursor
+            .try_insert(42)
+            .unwrap_err()
+            .downcast_ref::<cursor::NeedsUpdate>()
+            .is_some());
 
         cursor.update().unwrap();
 
@@ -93,9 +99,8 @@ mod tests {
         let s_val = (*s_aux).next_dup().unwrap();
 
         assert_eq!((*s_val).val(), Some(&42));
-
     }
-    const ITER: usize = 10;
+    const ITER: usize = 1000;
 
     #[test]
     fn test_next() {
@@ -120,7 +125,7 @@ mod tests {
         let list: Arc<List<u32>> = Arc::new(List::new());
 
         let mut vec_jh = vec![];
-        const NUM_THREADS: usize = 100;
+        const NUM_THREADS: usize = 1000;
 
         for _ in 0..NUM_THREADS {
             let list_copy = Arc::clone(&list);
@@ -145,8 +150,61 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, ITER*NUM_THREADS);
+        drop(cursor);
+
+        // helping in manual drop; as too many elements may 
+        // stack overflow in recursive drop
+        for _ in 0..ITER*NUM_THREADS {
+            let cursor = list.first().unwrap();
+            let element = cursor.delete().unwrap();
+            drop(element);
+        }
 
     }
+
+    #[test]
+    fn test_next_concurrent_deletion() {
+        let list: Arc<List<u32>> = Arc::new(List::new());
+
+        let mut vec_jh = vec![];
+        const NUM_THREADS: usize = 10;
+        const ITER: usize = 100;
+
+        for _ in 0..NUM_THREADS {
+            let list_copy = Arc::clone(&list);
+            let jh = thread::spawn(move || -> Result<()> {
+                let mut cursor = list_copy.first()?;
+
+                for _ in 0..ITER {
+                    cursor.insert(42)?;
+                }
+                Ok(())
+            });
+            vec_jh.push(jh);
+        }
+
+        for jh in vec_jh {
+            jh.join().unwrap().unwrap();
+        }
+
+        let mut cursor = list.first().unwrap();
+        let mut count = 0;
+        while cursor.next().unwrap() {
+            count += 1;
+        }
+        assert_eq!(count, ITER*NUM_THREADS);
+        drop(cursor);
+
+        // helping in manual drop; as too many elements may 
+        // stack overflow in recursive drop
+        for _ in 0..ITER*NUM_THREADS {
+            let cursor = list.first().unwrap();
+            let element = cursor.delete().unwrap();
+            drop(element);
+        }
+
+    }
+
 
     #[test]
     fn test_set_backlink() {
@@ -170,5 +228,6 @@ mod tests {
 
         drop(cursor);
     }
+
 
 }
