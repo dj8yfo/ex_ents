@@ -55,6 +55,7 @@ mod tests {
     use super:: List;
     use anyhow::Result;
 
+
     #[test]
     fn test_new() {
         let list: List<u32> = List::new();
