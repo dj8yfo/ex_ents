@@ -77,21 +77,12 @@ impl<T: Debug> Cursor<T> {
         let aux = Cell::new_aux(target.clone()); // +1 target
         let data = Cell::new_data(data, aux.clone());
 
-        match self
+        self
             .pre_aux
             .swap_in_next(target.clone(), Some(data.clone()))
-            .with_context(|| format!("err on try_insert {:?}; cursor needs update", data))
-        {
-            Ok(res) => {
-                drop(res);
-                Ok(())
-            }
-            Err(err) => {
-                aux.drop_links();
-                data.drop_links();
-                Err(err)
-            }
-        }
+            .with_context(|| format!("err on try_insert {:?}; cursor needs update", data))?;
+        Ok(())
+        
     }
 }
 

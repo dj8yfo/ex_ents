@@ -61,12 +61,6 @@ impl<T:Debug> Drop for Cell<T> {
 
 impl<T: Debug> Cell<T> {
 
-
-    pub fn drop_links(&self) {
-        self.store_next(None);
-        self.store_backlink(None);
-    }
-
     pub fn new_aux(next: Arc<Cell<T>>) -> Arc<Cell<T>> {
         let next = next.conserve();
         use self::Cell::*;
