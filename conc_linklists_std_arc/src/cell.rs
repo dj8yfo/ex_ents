@@ -6,19 +6,18 @@ use std::sync::{atomic::AtomicPtr, Arc};
 
 use anyhow::{Result, anyhow};
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct Links<T: Debug> {
     next: AtomicPtr<Cell<T>>,
     back_link: AtomicPtr<Cell<T>>,
 }
 
-#[derive(Debug)]
 pub enum Dummy<T: Debug> {
     First(Links<T>),
     Last,
 }
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub enum Cell<T: Debug> {
     Data { links: Links<T>, data: T },
     Aux { links: Links<T> },
@@ -29,10 +28,10 @@ use std::fmt::Debug;
 
 impl<T:Debug> Drop for Cell<T> {
     fn drop(&mut self) {
-        debug_assert!({
-            println!("dropping {:?}", self);
-            true
-        });
+        // debug_assert!({
+        //     println!("dropping {:?}", self);
+        //     true
+        // });
         use self::Cell::*;
         use self::Dummy::*;
         match self {

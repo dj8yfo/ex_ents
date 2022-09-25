@@ -167,8 +167,8 @@ mod tests {
         let list: Arc<List<u32>> = Arc::new(List::new());
 
         let mut vec_jh = vec![];
-        const NUM_THREADS: usize = 10;
-        const ITER: usize = 100;
+        const NUM_THREADS: usize = 1000;
+        const ITER: usize = 500;
 
         for _ in 0..NUM_THREADS {
             let list_copy = Arc::clone(&list);
@@ -197,11 +197,33 @@ mod tests {
 
         // helping in manual drop; as too many elements may 
         // stack overflow in recursive drop
-        for _ in 0..ITER*NUM_THREADS {
-            let cursor = list.first().unwrap();
-            let element = cursor.delete().unwrap();
-            drop(element);
+        let mut vec_del_jh = vec![];
+        for _ in 0..NUM_THREADS {
+            let list_copy = Arc::clone(&list);
+            let jh = thread::Builder::new().stack_size(262*1024*1024).spawn
+                (move || -> Result<()> {
+
+                for _ in 0..ITER {
+                    let cursor = list_copy.first().unwrap();
+                    let element = cursor.delete().unwrap();
+                    drop(element);
+                    
+                }
+                Ok(())
+            }).unwrap();
+            vec_del_jh.push(jh);
         }
+        for jh in vec_del_jh {
+            jh.join().unwrap().unwrap();
+        }
+
+        let mut cursor = list.first().unwrap();
+        let mut count = 0;
+        while cursor.next().unwrap() {
+            count += 1;
+        }
+        assert_eq!(count, 0);
+        drop(cursor);
 
     }
 

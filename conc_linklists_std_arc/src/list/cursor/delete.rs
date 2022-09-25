@@ -159,9 +159,14 @@ mod tests {
             let mut cursor = list.first().unwrap();
             cursor.try_delete().unwrap();
 
-            assert!(cursor.try_delete().unwrap_err()
-                .downcast_ref::<crate::list::cursor::NeedsUpdate>()
-                .is_some());
+            match cursor.try_delete() {
+                Err(e) => {
+                    assert!(e.downcast_ref::<crate::list::cursor::NeedsUpdate>()
+                        .is_some());
+                },
+                Ok(_) => assert!(false),
+             }
+
         }
 
         for i in 1..=10 {
