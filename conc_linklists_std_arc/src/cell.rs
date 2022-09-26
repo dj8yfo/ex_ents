@@ -26,8 +26,9 @@ pub enum Cell<T: Debug> {
 
 use std::fmt::Debug;
 
-impl<T:Debug> Drop for Cell<T> {
-    fn drop(&mut self) {
+
+impl<T: Debug> Cell<T> {
+    pub fn drop_links(&self) {
         // debug_assert!({
         //     println!("dropping {:?}", self);
         //     true

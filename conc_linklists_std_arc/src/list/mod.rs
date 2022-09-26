@@ -50,7 +50,7 @@ impl<T: Debug> List<T> {
 mod tests {
     use std::{sync::Arc, thread};
 
-    use crate::list::cursor;
+    use crate::{list::cursor, cell::Cell};
 
     use super:: List;
     use anyhow::Result;
@@ -125,8 +125,8 @@ mod tests {
     fn test_concurrent_treiber_stacking() {
         let list: Arc<List<u32>> = Arc::new(List::new());
 
-        const NUM_THREADS: usize = 10;
-        const ITER: usize = 100000;
+        const NUM_THREADS: usize = 1000;
+        const ITER: usize = 10000;
 
         // helping in manual drop; as too many elements may 
         // stack overflow in recursive drop
@@ -134,7 +134,8 @@ mod tests {
         for _ in 0..NUM_THREADS {
             let list_copy = Arc::clone(&list);
             let jh = thread::Builder::new().stack_size(262*1024*1024).spawn
-                (move || -> Result<()> {
+                (move || -> Result<Vec<Arc<Cell<u32>>>> {
+                let mut vec = vec![];
 
                 for _ in 0..ITER {
                     let mut cursor = list_copy.first().unwrap();
@@ -142,15 +143,17 @@ mod tests {
 
                     let cursor = list_copy.first().unwrap();
                     let element = cursor.delete().unwrap();
-                    drop(element);
+                    vec.push(element);
                     
                 }
-                Ok(())
+                Ok(vec)
             }).unwrap();
             vec_del_jh.push(jh);
         }
+        let mut collector = vec![];
         for jh in vec_del_jh {
-            jh.join().unwrap().unwrap();
+            let rv = jh.join().unwrap().unwrap();
+            collector.push(rv);
         }
 
         let mut cursor = list.first().unwrap();
@@ -160,6 +163,15 @@ mod tests {
         }
         assert_eq!(count, 0);
         drop(cursor);
+
+
+        for subvec in collector {
+            for elem in subvec {
+                elem.drop_links();
+                drop(elem);
+
+            }
+        }
 
     }
 
